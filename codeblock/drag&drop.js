@@ -62,6 +62,7 @@ document.addEventListener('DOMContentLoaded', function() {
         newBlock.classList.add('canvas-block');
         newBlock.style.opacity = '1';
         newBlock.removeAttribute('id');
+        logToConsole("Добавлен новый блок");
 
         const blockId = 'block_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
         newBlock.dataset.blockId = blockId;
@@ -99,6 +100,10 @@ document.addEventListener('DOMContentLoaded', function() {
         nameInput.dataset.field = 'varName';
         nameInput.className = 'var-name-input';
 
+        function isValid(){
+
+        }
+
         inputsGroup.appendChild(nameInput);
         block.appendChild(inputsGroup);
 
@@ -121,7 +126,7 @@ document.addEventListener('DOMContentLoaded', function() {
         select.appendChild(defaultOption);
 
         const valueInput = document.createElement('input');
-        valueInput.type = 'number';
+        valueInput.type = 'text';
         valueInput.placeholder = 'Новое значение';
         valueInput.dataset.field = 'varValue';
         valueInput.className = 'var-value-input';
@@ -140,12 +145,14 @@ document.addEventListener('DOMContentLoaded', function() {
             const variableBlocks = blocksContainer.querySelectorAll('.canvas-block[data-type="variable"]');
 
             variableBlocks.forEach(varBlock => {
-                const varName = varBlock.dataset.varName;
-                if (varName && varName.trim() !== '') {
-                    const option = document.createElement('option');
-                    option.value = varName;
-                    option.textContent = varName;
-                    select.appendChild(option);
+                const varNames = varBlock.dataset.varName.replace(/\s+/g, '').split(',');
+                for (const name of varNames) {
+                    if (name && name.trim() !== '') {
+                        const option = document.createElement('option');
+                        option.value = name;
+                        option.textContent = name;
+                        select.appendChild(option);
+                    }
                 }
             });
 
@@ -268,9 +275,7 @@ document.addEventListener('DOMContentLoaded', function() {
         runBtn.addEventListener('click', function() {
             const interpreter = new Interpreter();
             interpreter.runAlgotithm();
-            for (let [variable, info] of interpreter.variables) {
-                console.log('Переменная:', variable, 'Значение:', info.value);
-            }
+
             const event = new CustomEvent('programRun', { detail: interpreter.variables });
             document.dispatchEvent(event);
         });
@@ -282,17 +287,5 @@ document.addEventListener('DOMContentLoaded', function() {
                 output.innerHTML = '<div class="log-line system">> Готов!</div>';
             }
         });
-    }
-
-    function logToConsole(message) {
-        if (output) {
-            const line = document.createElement('div');
-            line.className = 'log-line';
-            line.textContent = '> ' + message;
-            output.appendChild(line);
-            output.scrollTop = output.scrollHeight;
-        } else {
-            console.log('Console:', message);
-        }
     }
 });
