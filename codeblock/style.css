@@ -222,12 +222,37 @@ header {
     box-shadow: 0 0 10px rgba(76, 175, 80, 0.4);
 }
 
-.console-panel {
-    width: 300px;
-    background-color: #181818;
-    border-left: 1px solid #333;
+.right-sidebar {
     display: flex;
     flex-direction: column;
+    width: 300px;
+}
+
+.console-panel {
+    width: 100%;
+    flex: 1;
+    min-height: 250px;
+    max-height: 400px;
+    background-color: #181818;
+    border: 1px solid #333;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.console-panel-alg {
+    width: 100%;
+    flex: 1;
+    min-height: 250px;
+    max-height: 400px;
+    flex-shrink: 0;
+    background-color: #1a1a2e;
+    border: 1px solid #333;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
 .console-header {
@@ -238,10 +263,29 @@ header {
     display: flex;
     justify-content: space-between;
 }
+
+.console-header-alg {
+    padding: 10px;
+    background-color: #181833;
+    border-bottom: 1px solid #333;
+    font-size: 0.85rem;
+    display: flex;
+    justify-content: space-between;
+}
+
 .clear-console { cursor: pointer; color: #aaa; }
 .clear-console:hover { color: #fff; }
 
 .console-output {
+    flex: 1;
+    padding: 10px;
+    font-family: 'Consolas', monospace;
+    font-size: 0.85rem;
+    color: #ccc;
+    overflow-y: auto;
+}
+
+.console-output-alg {
     flex: 1;
     padding: 10px;
     font-family: 'Consolas', monospace;

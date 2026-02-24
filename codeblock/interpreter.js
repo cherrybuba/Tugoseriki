@@ -5,7 +5,7 @@ class Interpreter
         this.variables = new Map();
     }
 
-    runAlgotithm() {
+    runAlgorithm() {
         this.clearErrorHighlight();
         for (const block of this.blocks) {
             const blockType = block.dataset.type;

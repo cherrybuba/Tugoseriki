@@ -1,96 +1,48 @@
-document.addEventListener('DOMContentLoaded', function() {
-    const workspace = document.querySelector('.workspace');
-    const blocksContainer = document.getElementById('blocks-container');
-    const output = document.getElementById('output');
-    const clearBtn = document.getElementById('clear-btn');
-    const runBtn = document.getElementById('run-btn');
-    const clearConsoleBtn = document.getElementById('clear-console-btn');
-
-    let draggedBlock = null;
-    let activeBlock = null;
-    let offset = { x: 0, y: 0 };
-    let blockToDelete = null;
-
-    document.querySelectorAll('.draggable-item').forEach(block => {
-        block.addEventListener('dragstart', dragStart);
-        block.addEventListener('dragend', dragEnd);
-    });
-
-    if (workspace) {
-        workspace.addEventListener('dragover', dragOver);
-        workspace.addEventListener('drop', drop);
-        workspace.addEventListener('dragenter', (e) => e.preventDefault());
-        workspace.addEventListener('dragleave', (e) => e.preventDefault());
-    }
-
-    document.addEventListener('mouseup', globalMouseUp);
-
-    function dragStart(e) {
-        draggedBlock = this;
-        e.dataTransfer.effectAllowed = 'copy';
-        e.dataTransfer.setData('text/html', this.outerHTML);
-        e.dataTransfer.setData('type', this.dataset.type || 'default');
-
-        setTimeout(() => this.style.opacity = '1', 0);
-    }
-
-    function dragEnd(e) {
-        this.style.opacity = '1';
-        draggedBlock = null;
-    }
-
-    function dragOver(e) {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'copy';
-    }
-
-    function drop(e) {
-        e.preventDefault();
-
-        if (!draggedBlock) return;
-
-        const workspaceRect = workspace.getBoundingClientRect();
-        const x = e.clientX - workspaceRect.left;
-        const y = e.clientY - workspaceRect.top;
-
-        if (x < 0 || x > workspaceRect.width || y < 0 || y > workspaceRect.height) {
-            console.log('Блок сброшен за пределами workspace');
-            return;
-        }
-
-        const newBlock = draggedBlock.cloneNode(true);
-        newBlock.classList.add('canvas-block');
-        newBlock.style.opacity = '1';
-        newBlock.removeAttribute('id');
-        logToConsole("Добавлен новый блок");
+class Block {
+    constructor(element, blocksContainer, workspace, onLog, onLogAlg) {
+        this.element = element;
+        this.blocksContainer = blocksContainer;
+        this.workspace = workspace;
+        this.onLog = onLog;
+        this.onLogAlg = onLogAlg;
+        
+        this.isMoving = false;
+        this.offset = { x: 0, y: 0 };
+        
+        this.moveBlock = this.moveBlock.bind(this);
+        this.stopBlockMove = this.stopBlockMove.bind(this);
+        
+        this.element.classList.add('canvas-block');
+        this.element.style.position = 'absolute';
+        this.element.style.opacity = '1';
+        this.element.removeAttribute('id');
 
         const blockId = 'block_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-        newBlock.dataset.blockId = blockId;
-        const blockType = newBlock.dataset.type;
+        this.element.dataset.blockId = blockId;
 
+        const blockType = this.element.dataset.type;
         if (blockType === 'variable') {
-            addVariableNameInput(newBlock);
+            this.addVariableNameInput();
+        } else if (blockType === 'assignment') {
+            this.addVariableValueInput();
         }
 
-        if (blockType === 'assignment') {
-            addVariableValueInput(newBlock);
-        }
-
-        newBlock.style.position = 'absolute';
-        newBlock.style.visibility = 'hidden';
-        blocksContainer.appendChild(newBlock);
-
-        const blockWidth = newBlock.offsetWidth;
-        const blockHeight = newBlock.offsetHeight;
-
-        newBlock.style.left = (x - blockWidth / 2) + 'px';
-        newBlock.style.top = (y - blockHeight / 2) + 'px';
-        newBlock.style.visibility = 'visible';
-
-        addBlockMovement(newBlock);
+        this.addMovement();
     }
 
-    function addVariableNameInput(block) {
+    setPosition(x, y) {
+        this.element.style.visibility = 'hidden';
+        this.blocksContainer.appendChild(this.element);
+
+        const blockWidth = this.element.offsetWidth;
+        const blockHeight = this.element.offsetHeight;
+
+        this.element.style.left = (x - blockWidth / 2) + 'px';
+        this.element.style.top = (y - blockHeight / 2) + 'px';
+        this.element.style.visibility = 'visible';
+    }
+
+    addVariableNameInput() {
         const inputsGroup = document.createElement('div');
         inputsGroup.className = 'block-inputs-group';
 
@@ -100,19 +52,15 @@ document.addEventListener('DOMContentLoaded', function() {
         nameInput.dataset.field = 'varName';
         nameInput.className = 'var-name-input';
 
-        function isValid(){
-
-        }
-
         inputsGroup.appendChild(nameInput);
-        block.appendChild(inputsGroup);
+        this.element.appendChild(inputsGroup);
 
-        nameInput.addEventListener('input', function() {
-            block.dataset.varName = nameInput.value.trim();
+        nameInput.addEventListener('input', () => {
+            this.element.dataset.varName = nameInput.value.trim();
         });
     }
 
-    function addVariableValueInput(block) {
+    addVariableValueInput() {
         const inputsGroup = document.createElement('div');
         inputsGroup.className = 'block-inputs-group';
 
@@ -134,18 +82,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
         inputsGroup.appendChild(select);
         inputsGroup.appendChild(valueInput);
-        block.appendChild(inputsGroup);
+        this.element.appendChild(inputsGroup);
 
-        select.addEventListener('click', function() {
+        const populateVariableSelect = (select, defaultOption) => {
             const currentValue = select.value;
-
             select.innerHTML = '';
             select.appendChild(defaultOption);
 
-            const variableBlocks = blocksContainer.querySelectorAll('.canvas-block[data-type="variable"]');
-
+            const variableBlocks = this.blocksContainer.querySelectorAll('.canvas-block[data-type="variable"]');
             variableBlocks.forEach(varBlock => {
-                const varNames = varBlock.dataset.varName.replace(/\s+/g, '').split(',');
+                const varNames = (varBlock.dataset.varName || '').replace(/\s+/g, '').split(',');
                 for (const name of varNames) {
                     if (name && name.trim() !== '') {
                         const option = document.createElement('option');
@@ -159,27 +105,31 @@ document.addEventListener('DOMContentLoaded', function() {
             if (currentValue) {
                 select.value = currentValue;
             }
+        };
+
+        select.addEventListener('click', (e) => {
+            e.stopPropagation();
+            populateVariableSelect(select, defaultOption);
         });
 
-        select.addEventListener('change', function() {
+        select.addEventListener('change', () => {
             const selectedVar = select.value;
-
             if (selectedVar) {
                 valueInput.disabled = false;
                 valueInput.placeholder = 'Значение для ' + selectedVar;
-                block.dataset.selectedVar = selectedVar;
+                this.element.dataset.selectedVar = selectedVar;
             } else {
                 valueInput.disabled = true;
                 valueInput.value = '';
                 valueInput.placeholder = 'Новое значение';
-                block.removeAttribute('data-selected-var');
+                this.element.removeAttribute('data-selected-var');
             }
         });
 
-        valueInput.addEventListener('input', function() {
-            const selectedVar = block.dataset.selectedVar;
+        valueInput.addEventListener('input', () => {
+            const selectedVar = this.element.dataset.selectedVar;
             if (selectedVar) {
-                block.dataset.newValue = valueInput.value;
+                this.element.dataset.newValue = valueInput.value;
             }
         });
 
@@ -189,61 +139,71 @@ document.addEventListener('DOMContentLoaded', function() {
         valueInput.addEventListener('click', (e) => e.stopPropagation());
     }
 
-    function addBlockMovement(block) {
-        block.addEventListener('mousedown', function(e) {
-            if (e.target.tagName === 'INPUT') return;
+    addMovement() {
+        this.element.addEventListener('mousedown', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
 
-            activeBlock = this;
-            blockToDelete = this;
+            if (this.isMoving) return;
 
-            const rect = this.getBoundingClientRect();
-            offset.x = e.clientX - rect.left;
-            offset.y = e.clientY - rect.top;
+            this.isMoving = true;
+            
+            document.removeEventListener('mousemove', this.moveBlock);
+            document.removeEventListener('mouseup', this.stopBlockMove);
 
-            this.style.zIndex = '1000';
-            this.style.opacity = '1';
+            const rect = this.element.getBoundingClientRect();
+            this.offset.x = e.clientX - rect.left;
+            this.offset.y = e.clientY - rect.top;
 
-            document.addEventListener('mousemove', moveBlock);
+            this.element.style.zIndex = '1000';
+            this.element.style.opacity = '1';
 
+            document.addEventListener('mousemove', this.moveBlock);
+            document.addEventListener('mouseup', this.stopBlockMove, { capture: true });
+            
             e.preventDefault();
         });
     }
 
-    function moveBlock(e) {
-        if (!activeBlock) return;
+    moveBlock(e) {
+        if (!this.isMoving || !this.workspace) return;
 
-        const workspaceRect = workspace.getBoundingClientRect();
-        const x = e.clientX - workspaceRect.left - offset.x;
-        const y = e.clientY - workspaceRect.top - offset.y;
+        const workspaceRect = this.workspace.getBoundingClientRect();
+        const x = e.clientX - workspaceRect.left - this.offset.x;
+        const y = e.clientY - workspaceRect.top - this.offset.y;
 
-        activeBlock.style.left = x + 'px';
-        activeBlock.style.top = y + 'px';
+        this.element.style.left = x + 'px';
+        this.element.style.top = y + 'px';
 
-        if (x < 0 || x > workspaceRect.width - activeBlock.offsetWidth ||
-            y < 0 || y > workspaceRect.height - activeBlock.offsetHeight) {
-            activeBlock.style.opacity = '0.5';
-            activeBlock.style.transform = 'scale(0.9)';
+        if (x < 0 || x > workspaceRect.width - this.element.offsetWidth ||
+            y < 0 || y > workspaceRect.height - this.element.offsetHeight) {
+            this.element.style.opacity = '0.5';
+            this.element.style.transform = 'scale(0.9)';
         } else {
-            activeBlock.style.opacity = '0.8';
-            activeBlock.style.transform = 'scale(1)';
+            this.element.style.opacity = '0.8';
+            this.element.style.transform = 'scale(1)';
         }
     }
 
-    function stopBlockMove() {
-        if (activeBlock) {
-            activeBlock.style.zIndex = '10';
-            activeBlock.style.opacity = '1';
-            activeBlock.style.transform = 'scale(1)';
-            activeBlock = null;
-        }
-        document.removeEventListener('mousemove', moveBlock);
+    stopBlockMove(e) {
+        if (!this.isMoving) return;
+
+        this.checkDeletion();
+
+        this.element.style.zIndex = '10';
+        this.element.style.opacity = '1';
+        this.element.style.transform = 'scale(1)';
+
+        document.removeEventListener('mousemove', this.moveBlock);
+        document.removeEventListener('mouseup', this.stopBlockMove, { capture: true });
+
+        this.isMoving = false;
     }
 
-    function globalMouseUp(e) {
-        if (!blockToDelete) return;
+    checkDeletion() {
+        if (!this.workspace) return false;
 
-        const workspaceRect = workspace.getBoundingClientRect();
-        const blockRect = blockToDelete.getBoundingClientRect();
+        const workspaceRect = this.workspace.getBoundingClientRect();
+        const blockRect = this.element.getBoundingClientRect();
 
         const isOutside = (
             blockRect.right < workspaceRect.left ||
@@ -253,39 +213,66 @@ document.addEventListener('DOMContentLoaded', function() {
         );
 
         if (isOutside) {
-            blockToDelete.remove();
-            logToConsole('Блок удалён');
-            console.log('Блок удалён за пределами workspace');
+            this.element.remove();
+            if (this.onLog) this.onLog('Блок удалён');
+            return true;
         }
-
-        blockToDelete = null;
-        stopBlockMove();
+        return false;
     }
+}
 
-    if (clearBtn) {
-        clearBtn.addEventListener('click', function() {
-            if (blocksContainer) {
-                blocksContainer.innerHTML = '';
-            }
-            logToConsole('Рабочая область очищена');
+class DragDropManager {
+    constructor(workspace, blocksContainer, onLog, onLogAlg) {
+        this.workspace = workspace;
+        this.blocksContainer = blocksContainer;
+        this.onLog = onLog;
+        this.onLogAlg = onLogAlg;
+        
+        this.draggedBlock = null;
+
+        document.querySelectorAll('.draggable-item').forEach(block => {
+            block.addEventListener('dragstart', this.dragStart);
+            block.addEventListener('dragend', this.dragEnd);
         });
+
+        if (this.workspace) {
+            this.workspace.addEventListener('dragover', this.dragOver);
+            this.workspace.addEventListener('drop', this.drop);
+            this.workspace.addEventListener('dragenter', (e) => e.preventDefault());
+            this.workspace.addEventListener('dragleave', (e) => e.preventDefault());
+        }
     }
 
-    if (runBtn) {
-        runBtn.addEventListener('click', function() {
-            const interpreter = new Interpreter();
-            interpreter.runAlgotithm();
+    dragStart = (e) => {
+        this.draggedBlock = e.currentTarget;
+        e.dataTransfer.effectAllowed = 'copy';
+        e.dataTransfer.setData('text/html', this.draggedBlock.outerHTML);
+        e.dataTransfer.setData('type', this.draggedBlock.dataset.type || 'default');
+        setTimeout(() => this.draggedBlock.style.opacity = '0.5', 0);
+    };
 
-            const event = new CustomEvent('programRun', { detail: interpreter.variables });
-            document.dispatchEvent(event);
-        });
-    }
+    dragEnd = (e) => {
+        e.currentTarget.style.opacity = '1';
+        this.draggedBlock = null;
+    };
 
-    if (clearConsoleBtn) {
-        clearConsoleBtn.addEventListener('click', function() {
-            if (output) {
-                output.innerHTML = '<div class="log-line system">> Готов!</div>';
-            }
-        });
-    }
-});
+    dragOver = (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
+    };
+
+    drop = (e) => {
+        e.preventDefault();
+        if (!this.draggedBlock || !this.workspace) return;
+
+        const workspaceRect = this.workspace.getBoundingClientRect();
+        const x = e.clientX - workspaceRect.left;
+        const y = e.clientY - workspaceRect.top;
+
+        const newBlockElement = this.draggedBlock.cloneNode(true);
+        const block = new Block(newBlockElement, this.blocksContainer, this.workspace, this.onLog);
+        block.setPosition(x, y);
+
+        if (this.onLog) this.onLog('Добавлен новый блок');
+    };
+}
