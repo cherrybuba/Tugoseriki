@@ -33,6 +33,13 @@ class Interpreter
                         return;
                     }
                     break;
+                case 'if':
+                    try {
+                        
+                    }
+                    catch (error) {
+                        return;
+                    }
             }
         }
     }
