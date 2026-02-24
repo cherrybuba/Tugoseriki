@@ -73,7 +73,7 @@ class RPN
         const stack = [];
         for (let token of tokens) {
             if (this.isVariable(token)) {
-                if (!variables.has(token)) throw new ReferenceError('Переменная \'${token}\' не объявленна ');
+                if (!variables.has(token)) throw new ReferenceError(`Переменная ${token} не объявленна`);
                 stack.push(variables.get(token).value);
             } else if (this.isNumber(token)) {
                 stack.push(parseInt(token));
@@ -149,7 +149,7 @@ class RPN
             if (this.isDigit(char)) {
                 buffer += char;
             } else if (this.isVariableSymbol(char)) {
-                if (bufferType === 'number') throw new SyntaxError('Недопустимое имя переменной');
+                if (bufferType === 'number') throw new SyntaxError('Недопустимое имя переменной - ' + buffer + char);
                 buffer += char;
             } else {
                 if (buffer) {
@@ -159,7 +159,7 @@ class RPN
 
                 if (this.isOperator(char) || char === '(' || char === ')') {
                     tokens.push(char);
-                } else throw new SyntaxError('Недопустимый символ');
+                } else throw new SyntaxError('Недопустимый символ - ' + char);
             }
         }
 

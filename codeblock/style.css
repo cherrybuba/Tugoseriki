@@ -92,7 +92,7 @@ header {
     display: inline-block;
     align-items: center;
     gap: 10px;
-    position: relative; 
+    position: relative;
     z-index: 2;
 }
 
@@ -262,4 +262,9 @@ header {
 
 .var-name-input {
     font-family: 'Consolas', monospace;
+}
+
+.canvas-block.error-highlight {
+    border: 3px solid #de1a1a !important;
+    box-shadow: 0 0 15px rgba(244, 135, 113, 0.7);
 }
