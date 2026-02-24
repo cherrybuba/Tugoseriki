@@ -1,13 +1,19 @@
 class RPN
 {
     static precedence = {
-        '+': 1,
-        '-': 1,
-        '*': 2,
-        '/': 2,
-        '%': 2,
-        '^': 4,
-        'u-': 3
+        '+': 2,
+        '-': 2,
+        '*': 3,
+        '/': 3,
+        '%': 3,
+        '^': 5,
+        'u-': 4,
+        '>': 1,
+        '<': 1,
+        '>=': 1,
+        '>=': 1,
+        '!=': 1,
+        '==': 1
     };
 
     static associativity = {
@@ -17,7 +23,13 @@ class RPN
         '/': 'left',
         '%': 'left',
         '^': 'left',
-        'u-': 'right'
+        'u-': 'right',
+        '>': 'left',
+        '<': 'left',
+        '>=': 'left',
+        '>=': 'left',
+        '!=': 'left',
+        '==': 'left'
     };
 
     static shuntingYard(expr) {
@@ -105,6 +117,18 @@ class RPN
                         stack.push(a % b);
                         break;
                     case '^': stack.push(Math.pow(a, b)); break;
+                    case '>':
+                        stack.push(Number(a > b)); break;
+                    case '<':
+                        stack.push(Number(a < b)); break;
+                    case '>=':
+                        stack.push(Number(a >= b)); break;
+                    case '<=':
+                        stack.push(Number(a <= b)); break;
+                    case '==':
+                        stack.push(Number(a == b)); break;
+                    case '!=':
+                        stack.push(Number(a != b)); break;
                 }
             }
         }
@@ -144,20 +168,48 @@ class RPN
                     bufferType = 'number';
                 } else if (this.isLetter(char)) {
                     bufferType = 'variable'
+                } else if (this.isComparisonSymbol(char)) {
+                    bufferType = 'compare';
                 }
             }
             if (this.isDigit(char)) {
-                buffer += char;
+                if (bufferType === 'compare') {
+                    if (this.isComparisonOperator(buffer)) {
+                        tokens.push(buffer);
+                        buffer = char;
+                        bufferType = 'number';
+                    } else {
+                        throw new SyntaxError('Недопустимый оператор сравнения - ' + buffer);
+                    }
+                } else buffer += char;
             } else if (this.isVariableSymbol(char)) {
-                if (bufferType === 'number') throw new SyntaxError('Недопустимое имя переменной - ' + buffer + char);
-                buffer += char;
+                if (bufferType === 'compare') {
+                    if (this.isComparisonOperator(buffer)) {
+                        tokens.push(buffer);
+                        buffer = char;
+                        bufferType = 'variable';
+                    } else {
+                        throw new SyntaxError('Недопустимый оператор сравнения - ' + buffer);
+                    }
+                } else if (bufferType === 'number') {
+                    throw new SyntaxError('Недопустимое имя переменной - ' + buffer + char);
+                } else buffer += char;
+            } else if (this.isComparisonSymbol(char)) {
+                if (bufferType === 'number' || bufferType === 'variable') {
+                    tokens.push(buffer);
+                    buffer = char;
+                    bufferType = 'compare';
+                } else buffer += char;
             } else {
                 if (buffer) {
+                    if (bufferType === 'compare' && !this.isComparisonOperator(buffer)) {
+                        throw new SyntaxError('Недопустимый оператор сравнения - ' + buffer);
+                    }
                     tokens.push(buffer);
                     buffer = '';
                 }
 
-                if (this.isOperator(char) || char === '(' || char === ')') {
+                if (this.isArithmeticOperator(char) || char === '(' || char === ')') {
                     tokens.push(char);
                 } else throw new SyntaxError('Недопустимый символ - ' + char);
             }
@@ -170,28 +222,35 @@ class RPN
         return tokens;
     }
 
-    static isDigit(char)
-    {
+    static isDigit (char) {
         return /[0-9]/.test(char);
     }
 
-    static isLetter(char)
-    {
+    static isLetter (char) {
         return /[a-zA-Zа-яА-ЯёЁ_]/.test(char);
     }
 
-    static isOperator(token)
-    {
-        return ['+', '-', '*', '/', '%', '^', 'u-'].includes(token);
+    static isArithmeticOperator (char) {
+        return ['+', '-', '*', '/', '%', '^', 'u-'].includes(char);
     }
 
-    static isVariableSymbol(char)
-    {
+    static isComparisonSymbol (char) {
+        return ['>', '<', '=', '!'].includes(char);
+    }
+
+    static isComparisonOperator (token) {
+        return ['>', '<', '>=', '<=', '!=', '=='].includes(token);
+    }
+
+    static isOperator(token) {
+        return ['+', '-', '*', '/', '%', '^', 'u-', '>', '<', '>=', '<=', '!=', '=='].includes(token);
+    }
+
+    static isVariableSymbol(char) {
         return /[a-zA-Zа-яА-ЯёЁ0-9_]/.test(char);
     }
 
-    static isVariable(token)
-    {
+    static isVariable(token) {
         if (!this.isLetter(token[0])) return false;
 
         for (const char of token) {
@@ -201,8 +260,8 @@ class RPN
         return true;
     }
 
-    static isNumber(token)
-    {
+    static isNumber(token) {
         return !isNaN(token);
     }
 }
+
