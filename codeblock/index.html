@@ -32,8 +32,15 @@
         </aside>
 
         <section class="workspace" id="canvas">
-            <div class="grid-background"></div>
-            <div class="start-node">START</div>
+            <div class="zoom-controls">
+                <button class="btn-zoom" onclick="zoomOut()"><i class="fa-solid fa-minus"></i></button>
+                <span id="zoom-level">100%</span>
+                <button class="btn-zoom" onclick="zoomIn()"><i class="fa-solid fa-plus"></i></button>
+            </div>
+            <div id="zoom-layer" ondrop="dropOnCanvas" ondragover="allowDrop">
+                <div class="grid-background"></div>
+                <div class="start-node">START</div>
+            </div>
             <div id="blocks-container"></div>
         </section>
 
