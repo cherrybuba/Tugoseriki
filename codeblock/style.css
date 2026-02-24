@@ -294,6 +294,77 @@ header {
     overflow-y: auto;
 }
 
+#workspace-container {
+    overflow: auto;
+    position: relative;
+}
+
+#zoom-layer {
+    width: 2000px;
+    height: 2000px;
+    transform-origin: 0 0;
+    transition: transform 0.2s ease;
+    position: relative;
+}
+
+.zoom-controls {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    background: white;
+    padding: 5px 10px;
+    border-radius: 50px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: bold;
+    color: #555;
+}
+
+.btn-zoom {
+    background: var(--bg-color);
+    border: none;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    cursor: pointer;
+    color: var(--primary-color);
+    transition: 0.2s;
+}
+
+.btn-zoom:hover {
+    background: var(--primary-color);
+    color: white;
+}
+
+.nested-container {
+    min-height: 40px;
+    margin-top: 10px;
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 10px;
+    padding: 10px;
+    border: 2px dashed #cbd5e1;
+    transition: 0.2s;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.nested-container.drag-over {
+    background: rgba(244, 114, 182, 0.1);
+    border-color: var(--primary-color);
+}
+
+.nested-container .canvas-block {
+    position: static;
+    width: 100%;
+    box-shadow: none;
+    border: 1px solid #ddd;
+    transform: none !important;
+}
+
 .log-line { margin-bottom: 5px; }
 .log-line.error { color: #f48771; }
 .log-line.success { color: #89d185; }
