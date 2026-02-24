@@ -6,8 +6,8 @@ class Interpreter
     }
 
     runAlgotithm() {
-        this.blocks.forEach(block => {
-
+        this.clearErrorHighlight();
+        for (const block of this.blocks) {
             const blockType = block.dataset.type;
             const input = block.querySelector('input');
             const select = block.querySelector('select');
@@ -20,6 +20,7 @@ class Interpreter
                     }
                     catch (error) {
                         this.handleDeclarationError(error, block);
+                        return;
                     }
                     break;
                 case 'assignment':
@@ -29,10 +30,11 @@ class Interpreter
                     }
                     catch (error) {
                         this.handleDefineError(error, block);
+                        return;
                     }
                     break;
             }
-        })
+        }
     }
 
     createVariables (names) {
@@ -46,27 +48,42 @@ class Interpreter
 
     isValidName (name) {
         if (!(/[a-zA-Zа-яА-ЯёЁ_]/.test(name[0]))) {
-            throw new SyntaxError('Недопустимое имя переменной');
+            throw new SyntaxError(`Недопустимое имя переменной - ${name}`);
         }
 
         for (const char of name) {
             if (!(/[a-zA-Zа-яА-ЯёЁ0-9_]/.test(char))) {
-                throw new SyntaxError('Недопустимое имя переменной');
+                throw new SyntaxError(`Недопустимое имя переменной - ${name}`);
             }
         }
 
         if (this.variables.has(name)) {
-            throw new ReferenceError('Переменная \'${name}\'уже объявлена');
+            throw new ReferenceError(`Переменная ${name} уже объявлена`);
         }
 
         return true;
     }
 
+    clearErrorHighlight() {
+        document.querySelectorAll('.canvas-block.error-highlight').forEach(block => {
+            block.classList.remove('error-highlight');
+        });
+    }
+
+    highlightBlock(block) {
+        if (block) {
+            block.classList.add('error-highlight');
+        }
+    }
+
     handleDeclarationError (error, block) {
+        this.highlightBlock(block);
         switch (error.name) {
             case 'SyntaxError':
+                logToConsole(error.message);
                 break;
             case 'ReferenceError':
+                logToConsole(error.message);
                 break;
         }
     }
@@ -80,22 +97,16 @@ class Interpreter
     }
 
     handleDefineError (error, block) {
+        this.highlightBlock(block);
         switch (error.name) {
             case 'ArithmeticError':
+                logToConsole(error.message);
                 break;
             case 'SyntaxError':
-                switch (error.message) {
-                    case 'Непарная скобка':
-                        break;
-                    case 'Недостаточно операндов':
-                        break;
-                    case 'Недопустимое имя переменной':
-                        break;
-                    case 'Недопустимый символ':
-                        break;
-                }
+                logToConsole(error.message);
                 break;
             case 'ReferenceError':
+                logToConsole(error.message);
                 break;
         }
     }
