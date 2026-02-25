@@ -1,69 +1,31 @@
-let scale = 1;
-const ZOOM_SPEED = 0.1;
-const MIN_SCALE = 0.5;
-const MAX_SCALE = 3.0;
-
-const zoomLayer = document.getElementById('zoom-layer');
-const workspaceContainer = document.getElementById('workspace-container');
-const zoomLabel = document.getElementById('zoom-level');
-
-function zoomIn() {
-    if (scale < MAX_SCALE) {
-        scale += ZOOM_SPEED;
-        updateZoom();
-    }
+if (typeof scale === 'undefined') {
+    var scale = 1; 
 }
 
-function zoomOut() {
-    if (scale > MIN_SCALE) {
-        scale -= ZOOM_SPEED;
-        updateZoom();
-    }
-}
+const workspaceArea = document.getElementById('canvas');
 
-function updateZoom() {
-    scale = Math.round(scale * 10) / 10;
-    zoomLayer.style.transform = `scale(${scale})`;
-    if (zoomLabel) {
-        zoomLabel.innerText = Math.round(scale * 100) + '%';
-    }
-}
-
-document.addEventListener('wheel', function(e) {
+workspaceArea.addEventListener('wheel', function(e) {
     if (e.ctrlKey) {
-        if (e.target.closest('#workspace-container')) {
-            e.preventDefault();
-            if (e.deltaY < 0) {
-                if (typeof zoomIn === 'function') {
-                    zoomIn();
-                } else {
-                     if (scale < 3.0) scale += 0.1;
-                     updateZoom();
-                }
-            } else {
-                if (typeof zoomOut === 'function') {
-                    zoomOut();
-                } else {
-                     if (scale > 0.5) scale -= 0.1;
-                     updateZoom();
-                }
-            }
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (e.deltaY < 0) {
+            if (scale < 3.0) scale += 0.1;
+        } else {
+            if (scale > 0.5) scale -= 0.1;
+        }
+
+        scale = Math.round(scale * 10) / 10;
+
+        const zoomLayer = document.getElementById('zoom-layer');
+        if (zoomLayer) {
+            zoomLayer.style.transform = `scale(${scale})`;
+            zoomLayer.style.transformOrigin = "0 0";
+        }
+
+        const zoomLabel = document.getElementById('zoom-level');
+        if (zoomLabel) {
+            zoomLabel.innerText = Math.round(scale * 100) + '%';
         }
     }
 }, { passive: false });
-
-
-function getScaledDropCoordinates(event) {
-    const rect = zoomLayer.getBoundingClientRect();
-    return {
-        x: (event.clientX - rect.left) / scale,
-        y: (event.clientY - rect.top) / scale
-    };
-}
-
-function applyScaledDrag(element, deltaX, deltaY) {
-    const newLeft = element.offsetLeft - (deltaX / scale);
-    const newTop = element.offsetTop - (deltaY / scale);
-    element.style.left = newLeft + "px";
-    element.style.top = newTop + "px";
-}

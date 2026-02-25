@@ -7,7 +7,6 @@
 
 body {
     overscroll-behavior: none;
-    touch-action: none;
     background-color: #8b4177;
     color: #fff;
     height: 100vh;
