@@ -37,7 +37,7 @@ class ControlsManager {
 
     logToConsoleAlgorithm(message, type = 'info') {
         if (!this.outputAlg) return;
-        const line = document.createElement('div');
+        const line = document.createElement('div'); 
         line.className = `log-line ${type}-alg`;
         line.textContent = `> ${message}`;
         this.outputAlg.appendChild(line);
@@ -62,10 +62,10 @@ class ControlsManager {
                 this.clearConsole();
                 if (typeof Interpreter !== 'undefined') {
                     const interpreter = new Interpreter((msg, type) => this.logToConsoleAlgorithm(msg, type));
-                    interpreter.runAlgorithm(interpreter.blocks);
+                    interpreter.runAlgorithm();
 
-                    const event = new CustomEvent('programRun', {
-                        detail: interpreter.variables
+                    const event = new CustomEvent('programRun', { 
+                        detail: interpreter.variables 
                     });
                     document.dispatchEvent(event);
                 } else {
