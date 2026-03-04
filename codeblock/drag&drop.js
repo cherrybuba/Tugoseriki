@@ -8,6 +8,7 @@ class Block {
         
         this.isMoving = false;
         this.offset = { x: 0, y: 0 };
+        this.currentScale = 1;
         
         this.moveBlock = this.moveBlock.bind(this);
         this.stopBlockMove = this.stopBlockMove.bind(this);
@@ -28,6 +29,22 @@ class Block {
         }
 
         this.addMovement();
+        
+        this.setupScaleListener();
+    }
+
+    setupScaleListener() {
+        const updateScale = () => {
+            if (typeof scale !== 'undefined') {
+                this.currentScale = scale;
+            }
+        };
+        
+        document.addEventListener('mousemove', () => {
+            if (typeof scale !== 'undefined') {
+                this.currentScale = scale;
+            }
+        });
     }
 
     setPosition(x, y) {
@@ -37,9 +54,112 @@ class Block {
         const blockWidth = this.element.offsetWidth;
         const blockHeight = this.element.offsetHeight;
 
-        this.element.style.left = (x - blockWidth / 2) + 'px';
-        this.element.style.top = (y - blockHeight / 2) + 'px';
+        const scaledX = (x - blockWidth / 2) / this.currentScale;
+        const scaledY = (y - blockHeight / 2) / this.currentScale;
+        
+        this.element.style.left = scaledX + 'px';
+        this.element.style.top = scaledY + 'px';
         this.element.style.visibility = 'visible';
+    }
+
+    addMovement() {
+        this.element.addEventListener('mousedown', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+
+            if (this.isMoving) return;
+
+            this.isMoving = true;
+            
+            if (typeof scale !== 'undefined') {
+                this.currentScale = scale;
+            }
+            
+            document.removeEventListener('mousemove', this.moveBlock);
+            document.removeEventListener('mouseup', this.stopBlockMove);
+
+            const rect = this.element.getBoundingClientRect();
+            
+            this.offset.x = (e.clientX - rect.left) / this.currentScale;
+            this.offset.y = (e.clientY - rect.top) / this.currentScale;
+
+            this.element.style.zIndex = '1000';
+            this.element.style.opacity = '1';
+
+            document.addEventListener('mousemove', this.moveBlock);
+            document.addEventListener('mouseup', this.stopBlockMove, { capture: true });
+            
+            e.preventDefault();
+        });
+    }
+
+    moveBlock(e) {
+        if (!this.isMoving || !this.workspace) return;
+
+        if (typeof scale !== 'undefined') {
+            this.currentScale = scale;
+        }
+
+        const workspaceRect = this.workspace.getBoundingClientRect();
+        
+        const mouseX = e.clientX - workspaceRect.left;
+        const mouseY = e.clientY - workspaceRect.top;
+        
+        const scaledX = mouseX / this.currentScale - this.offset.x;
+        const scaledY = mouseY / this.currentScale - this.offset.y;
+
+        this.element.style.left = scaledX + 'px';
+        this.element.style.top = scaledY + 'px';
+
+        const blockWidth = this.element.offsetWidth;
+        const blockHeight = this.element.offsetHeight;
+        
+        const scaledWorkspaceWidth = workspaceRect.width / this.currentScale;
+        const scaledWorkspaceHeight = workspaceRect.height / this.currentScale;
+
+        if (scaledX < 0 || scaledX > scaledWorkspaceWidth - blockWidth ||
+            scaledY < 0 || scaledY > scaledWorkspaceHeight - blockHeight) {
+            this.element.style.opacity = '0.5';
+            this.element.style.transform = 'scale(0.9)';
+        } else {
+            this.element.style.opacity = '0.8';
+            this.element.style.transform = 'scale(1)';
+        }
+    }
+
+    stopBlockMove(e) {
+        if (!this.isMoving) return;
+
+        this.checkDeletion();
+
+        this.element.style.zIndex = '10';
+        this.element.style.opacity = '1';
+        this.element.style.transform = 'scale(1)';
+
+        document.removeEventListener('mousemove', this.moveBlock);
+        document.removeEventListener('mouseup', this.stopBlockMove, { capture: true });
+
+        this.isMoving = false;
+    }
+
+    checkDeletion() {
+        if (!this.workspace) return false;
+
+        const workspaceRect = this.workspace.getBoundingClientRect();
+        const blockRect = this.element.getBoundingClientRect();
+
+        const isOutside = (
+            blockRect.right < workspaceRect.left ||
+            blockRect.left > workspaceRect.right ||
+            blockRect.bottom < workspaceRect.top ||
+            blockRect.top > workspaceRect.bottom
+        );
+
+        if (isOutside) {
+            this.element.remove();
+            if (this.onLog) this.onLog('Блок удалён');
+            return true;
+        }
+        return false;
     }
 
     addVariableNameInput() {
@@ -138,87 +258,6 @@ class Block {
         valueInput.addEventListener('mousedown', (e) => e.stopPropagation());
         valueInput.addEventListener('click', (e) => e.stopPropagation());
     }
-
-    addMovement() {
-        this.element.addEventListener('mousedown', (e) => {
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
-
-            if (this.isMoving) return;
-
-            this.isMoving = true;
-            
-            document.removeEventListener('mousemove', this.moveBlock);
-            document.removeEventListener('mouseup', this.stopBlockMove);
-
-            const rect = this.element.getBoundingClientRect();
-            this.offset.x = e.clientX - rect.left;
-            this.offset.y = e.clientY - rect.top;
-
-            this.element.style.zIndex = '1000';
-            this.element.style.opacity = '1';
-
-            document.addEventListener('mousemove', this.moveBlock);
-            document.addEventListener('mouseup', this.stopBlockMove, { capture: true });
-            
-            e.preventDefault();
-        });
-    }
-
-    moveBlock(e) {
-        if (!this.isMoving || !this.workspace) return;
-
-        const workspaceRect = this.workspace.getBoundingClientRect();
-        const x = e.clientX - workspaceRect.left - this.offset.x;
-        const y = e.clientY - workspaceRect.top - this.offset.y;
-
-        this.element.style.left = x + 'px';
-        this.element.style.top = y + 'px';
-
-        if (x < 0 || x > workspaceRect.width - this.element.offsetWidth ||
-            y < 0 || y > workspaceRect.height - this.element.offsetHeight) {
-            this.element.style.opacity = '0.5';
-            this.element.style.transform = 'scale(0.9)';
-        } else {
-            this.element.style.opacity = '0.8';
-            this.element.style.transform = 'scale(1)';
-        }
-    }
-
-    stopBlockMove(e) {
-        if (!this.isMoving) return;
-
-        this.checkDeletion();
-
-        this.element.style.zIndex = '10';
-        this.element.style.opacity = '1';
-        this.element.style.transform = 'scale(1)';
-
-        document.removeEventListener('mousemove', this.moveBlock);
-        document.removeEventListener('mouseup', this.stopBlockMove, { capture: true });
-
-        this.isMoving = false;
-    }
-
-    checkDeletion() {
-        if (!this.workspace) return false;
-
-        const workspaceRect = this.workspace.getBoundingClientRect();
-        const blockRect = this.element.getBoundingClientRect();
-
-        const isOutside = (
-            blockRect.right < workspaceRect.left ||
-            blockRect.left > workspaceRect.right ||
-            blockRect.bottom < workspaceRect.top ||
-            blockRect.top > workspaceRect.bottom
-        );
-
-        if (isOutside) {
-            this.element.remove();
-            if (this.onLog) this.onLog('Блок удалён');
-            return true;
-        }
-        return false;
-    }
 }
 
 class DragDropManager {
@@ -229,6 +268,7 @@ class DragDropManager {
         this.onLogAlg = onLogAlg;
         
         this.draggedBlock = null;
+        this.currentScale = 1;
 
         document.querySelectorAll('.draggable-item').forEach(block => {
             block.addEventListener('dragstart', this.dragStart);
@@ -265,13 +305,23 @@ class DragDropManager {
         e.preventDefault();
         if (!this.draggedBlock || !this.workspace) return;
 
+        if (typeof scale !== 'undefined') {
+            this.currentScale = scale;
+        }
+
         const workspaceRect = this.workspace.getBoundingClientRect();
-        const x = e.clientX - workspaceRect.left;
-        const y = e.clientY - workspaceRect.top;
+        
+        const mouseX = e.clientX - workspaceRect.left;
+        const mouseY = e.clientY - workspaceRect.top;
+        
+        const scaledX = mouseX / this.currentScale;
+        const scaledY = mouseY / this.currentScale;
 
         const newBlockElement = this.draggedBlock.cloneNode(true);
+        
         const block = new Block(newBlockElement, this.blocksContainer, this.workspace, this.onLog);
-        block.setPosition(x, y);
+        block.currentScale = this.currentScale;
+        block.setPosition(scaledX * this.currentScale, scaledY * this.currentScale);
 
         if (this.onLog) this.onLog('Добавлен новый блок');
     };
