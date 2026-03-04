@@ -1,13 +1,13 @@
 class Interpreter
 {
     constructor () {
-        this.blocks = document.getElementById('blocks-container').querySelectorAll('[class*="canvas-block"]');
+        this.blocks = document.getElementById('blocks-container').querySelectorAll(':scope > [class*="canvas-block"]');
         this.variables = new Map();
     }
 
-    runAlgorithm() {
+    runAlgorithm(blocks) {
         this.clearErrorHighlight();
-        for (const block of this.blocks) {
+        for (const block of blocks) {
             const blockType = block.dataset.type;
             const input = block.querySelector('input');
             const select = block.querySelector('select');
@@ -35,11 +35,20 @@ class Interpreter
                     break;
                 case 'if':
                     try {
-                        
+                        this.executeIfStatement(input.value, block.querySelector('[class*="nested-container"]'));
                     }
                     catch (error) {
                         return;
                     }
+                    break;
+                case 'while':
+                    try {
+                        this.executeWhileLoop(input.value, block.querySelector('[class*="nested-container"]'));
+                    }
+                    catch (error) {
+                        return;
+                    }
+                    break;
             }
         }
     }
@@ -116,5 +125,23 @@ class Interpreter
                 logToConsole(error.message);
                 break;
         }
+    }
+
+    executeIfStatement (condition, inner_block) {
+        if (RPN.calculate(this.variables, condition)) {
+            logToConsole('Условие ' + condition + ' истинно');
+            this.runAlgorithm(inner_block.querySelectorAll(':scope > [class*="canvas-block"]'));
+            return;
+        }
+        logToConsole('Условие ' + condition + ' ложно');
+    }
+
+    executeWhileLoop (condition, inner_block) {
+        let count = 0;
+        while (RPN.calculate(this.variables, condition)) {
+            this.runAlgorithm(inner_block.querySelectorAll(':scope > [class*="canvas-block"]'));
+           ++count;
+        }
+        logToConsole('Цикл while выполнился ' + count + ' раз');
     }
 }
