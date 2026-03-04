@@ -5,14 +5,15 @@ class Block {
         this.workspace = workspace;
         this.onLog = onLog;
         this.onLogAlg = onLogAlg;
-        
+
         this.isMoving = false;
         this.offset = { x: 0, y: 0 };
+
         this.currentScale = 1;
         
         this.moveBlock = this.moveBlock.bind(this);
         this.stopBlockMove = this.stopBlockMove.bind(this);
-        
+
         this.element.classList.add('canvas-block');
         this.element.style.position = 'absolute';
         this.element.style.opacity = '1';
@@ -26,6 +27,9 @@ class Block {
             this.addVariableNameInput();
         } else if (blockType === 'assignment') {
             this.addVariableValueInput();
+        } else if (blockType === 'if' || blockType === 'while') {
+            this.addConditionInput();
+            this.addNestedContainer();
         }
 
         this.addMovement();
@@ -45,6 +49,93 @@ class Block {
                 this.currentScale = scale;
             }
         });
+    }
+
+    addConditionInput() {
+        const inputsGroup = document.createElement('div');
+        inputsGroup.className = 'block-inputs-group';
+
+        const conditionInput = document.createElement('input');
+        conditionInput.type = 'text';
+        conditionInput.placeholder = 'Условие (например: x > 5)';
+        conditionInput.dataset.field = 'condition';
+        conditionInput.className = 'condition-input';
+
+        inputsGroup.appendChild(conditionInput);
+        this.element.appendChild(inputsGroup);
+
+        conditionInput.addEventListener('input', () => {
+            this.element.dataset.condition = conditionInput.value.trim();
+        });
+
+        conditionInput.addEventListener('mousedown', (e) => e.stopPropagation());
+        conditionInput.addEventListener('click', (e) => e.stopPropagation());
+    }
+
+    addNestedContainer() {
+        const container = document.createElement('div');
+        container.className = 'nested-container';
+        container.dataset.parentId = this.element.dataset.blockId;
+
+        const placeholder = document.createElement('div');
+        placeholder.className = 'nested-placeholder';
+        placeholder.textContent = 'Перетащите блоки сюда';
+        container.appendChild(placeholder);
+
+        this.element.appendChild(container);
+
+        container.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            container.classList.add('drag-over');
+        });
+
+        container.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            container.classList.remove('drag-over');
+        });
+
+        container.addEventListener('drop', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            container.classList.remove('drag-over');
+
+            const draggedBlock = document.querySelector('.draggable-item[draggable="true"]:active');
+            if (!draggedBlock) return;
+
+            const rect = container.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            this.createNestedBlock(draggedBlock, container, x, y);
+        });
+    }
+
+    createNestedBlock(sourceElement, container, offsetX, offsetY) {
+        const newBlockElement = sourceElement.cloneNode(true);
+        const nestedBlock = new Block(
+            newBlockElement,
+            container,
+            this.workspace,
+            this.onLog,
+            this.onLogAlg
+        );
+
+        newBlockElement.style.position = 'relative';
+        newBlockElement.style.left = '0';
+        newBlockElement.style.top = '0';
+        newBlockElement.style.margin = '5px 0';
+        newBlockElement.style.width = 'calc(100% - 20px)';
+
+        const placeholder = container.querySelector('.nested-placeholder');
+        if (placeholder) {
+            placeholder.remove();
+        }
+
+        container.appendChild(newBlockElement);
+
+        if (this.onLog) this.onLog('Блок добавлен в контейнер');
     }
 
     setPosition(x, y) {
@@ -209,7 +300,7 @@ class Block {
             select.innerHTML = '';
             select.appendChild(defaultOption);
 
-            const variableBlocks = this.blocksContainer.querySelectorAll('.canvas-block[data-type="variable"]');
+            const variableBlocks = document.getElementById('blocks-container').querySelectorAll('.canvas-block[data-type="variable"]');
             variableBlocks.forEach(varBlock => {
                 const varNames = (varBlock.dataset.varName || '').replace(/\s+/g, '').split(',');
                 for (const name of varNames) {
@@ -258,6 +349,87 @@ class Block {
         valueInput.addEventListener('mousedown', (e) => e.stopPropagation());
         valueInput.addEventListener('click', (e) => e.stopPropagation());
     }
+
+    addMovement() {
+        this.element.addEventListener('mousedown', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+
+            if (this.isMoving) return;
+
+            this.isMoving = true;
+
+            document.removeEventListener('mousemove', this.moveBlock);
+            document.removeEventListener('mouseup', this.stopBlockMove);
+
+            const rect = this.element.getBoundingClientRect();
+            this.offset.x = e.clientX - rect.left;
+            this.offset.y = e.clientY - rect.top;
+
+            this.element.style.zIndex = '1000';
+            this.element.style.opacity = '1';
+
+            document.addEventListener('mousemove', this.moveBlock);
+            document.addEventListener('mouseup', this.stopBlockMove, { capture: true });
+
+            e.preventDefault();
+        });
+    }
+
+    moveBlock(e) {
+        if (!this.isMoving || !this.workspace) return;
+
+        const workspaceRect = this.workspace.getBoundingClientRect();
+        const x = e.clientX - workspaceRect.left - this.offset.x;
+        const y = e.clientY - workspaceRect.top - this.offset.y;
+
+        this.element.style.left = x + 'px';
+        this.element.style.top = y + 'px';
+
+        if (x < 0 || x > workspaceRect.width - this.element.offsetWidth ||
+            y < 0 || y > workspaceRect.height - this.element.offsetHeight) {
+            this.element.style.opacity = '0.5';
+            this.element.style.transform = 'scale(0.9)';
+        } else {
+            this.element.style.opacity = '0.8';
+            this.element.style.transform = 'scale(1)';
+        }
+    }
+
+    stopBlockMove(e) {
+        if (!this.isMoving) return;
+
+        this.checkDeletion();
+
+        this.element.style.zIndex = '10';
+        this.element.style.opacity = '1';
+        this.element.style.transform = 'scale(1)';
+
+        document.removeEventListener('mousemove', this.moveBlock);
+        document.removeEventListener('mouseup', this.stopBlockMove, { capture: true });
+
+        this.isMoving = false;
+    }
+
+    checkDeletion() {
+        if (!this.workspace) return false;
+
+        const workspaceRect = this.workspace.getBoundingClientRect();
+        const blockRect = this.element.getBoundingClientRect();
+
+        const isOutside = (
+            blockRect.right < workspaceRect.left ||
+            blockRect.left > workspaceRect.right ||
+            blockRect.bottom < workspaceRect.top ||
+            blockRect.top > workspaceRect.bottom
+        );
+
+        if (isOutside) {
+            this.element.remove();
+            if (this.onLog) this.onLog('Блок удалён');
+            return true;
+        }
+        return false;
+    }
 }
 
 class DragDropManager {
@@ -266,7 +438,7 @@ class DragDropManager {
         this.blocksContainer = blocksContainer;
         this.onLog = onLog;
         this.onLogAlg = onLogAlg;
-        
+
         this.draggedBlock = null;
         this.currentScale = 1;
 
