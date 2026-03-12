@@ -1,8 +1,9 @@
 class Interpreter
 {
-    constructor () {
+    constructor (logCallback) {
         this.blocks = document.getElementById('blocks-container').querySelectorAll('[class*="canvas-block"]');
         this.variables = new Map();
+        this.logCallback = logCallback;
     }
 
     runAlgorithm() {
@@ -16,7 +17,7 @@ class Interpreter
                 case 'variable':
                     try {
                         this.createVariables(input.value);
-                        logToConsole(`Объявлена переменная ${input.value}`)
+                        this.logCallback(`Объявлена переменная ${input.value}`, 'info');
                     }
                     catch (error) {
                         this.handleDeclarationError(error, block);
@@ -26,7 +27,7 @@ class Interpreter
                 case 'assignment':
                     try {
                         this.defineVariable(select.value, input.value);
-                        logToConsole(`Переменной ${select.value} присвоено значение ${this.variables.get(select.value).value}`);
+                        this.logCallback(`Переменной ${select.value} присвоено значение ${this.variables.get(select.value).value}`, 'info');
                     }
                     catch (error) {
                         this.handleDefineError(error, block);
@@ -87,10 +88,10 @@ class Interpreter
         this.highlightBlock(block);
         switch (error.name) {
             case 'SyntaxError':
-                logToConsole(error.message);
+                this.logCallback(error.message, 'error');
                 break;
             case 'ReferenceError':
-                logToConsole(error.message);
+                this.logCallback(error.message, 'error');
                 break;
         }
     }
@@ -107,13 +108,13 @@ class Interpreter
         this.highlightBlock(block);
         switch (error.name) {
             case 'ArithmeticError':
-                logToConsole(error.message);
+                this.logCallback(error.message, 'error');
                 break;
             case 'SyntaxError':
-                logToConsole(error.message);
+                this.logCallback(error.message, 'error');
                 break;
             case 'ReferenceError':
-                logToConsole(error.message);
+                this.logCallback(error.message, 'error');
                 break;
         }
     }

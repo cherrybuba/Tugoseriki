@@ -1,17 +1,23 @@
 var scale = 1;          
 const ZOOM_SPEED = 0.1; 
-const MIN_SCALE = 0.2;  
-const MAX_SCALE = 3.0;  
+const MIN_SCALE = 0.3;  
+const MAX_SCALE = 2.0;  
 
 function updateZoomUI() {
     const zoomLayer = document.getElementById('zoom-layer');
     const zoomLabel = document.getElementById('zoom-level');
+    const gridBackground = document.querySelector('.grid-background');
 
     scale = Math.round(scale * 10) / 10;
 
     if (zoomLayer) {
         zoomLayer.style.transform = `scale(${scale})`;
-        zoomLayer.style.transformOrigin = "0 0";
+    }
+
+    if (gridBackground) {
+        const baseGridSize = 25;
+        const scaledGridSize = baseGridSize * scale;
+        gridBackground.style.backgroundSize = `${scaledGridSize}px ${scaledGridSize}px`;
     }
 
     if (zoomLabel) {
@@ -34,12 +40,10 @@ function zoomOut() {
 }
 
 document.addEventListener("DOMContentLoaded", function() {
-    
     const workspaceContainer = document.getElementById('canvas');
 
     if (workspaceContainer) {
         workspaceContainer.addEventListener('wheel', function(e) {
-            
             if (e.ctrlKey) {
                 e.preventDefault();
                 e.stopPropagation();
@@ -50,7 +54,6 @@ document.addEventListener("DOMContentLoaded", function() {
                     zoomOut();
                 }
             }
-            
         }, { passive: false });
     } else {
         console.error("Ошибка: Не найден элемент #canvas");

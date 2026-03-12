@@ -18,11 +18,18 @@ class ControlsManager {
         this.setupClearBtn();
         this.setupRunBtn();
         this.setupClearConsoleBtn();
+        this.setupClearConsoleBtnAlg();
     }
 
     clearConsole() {
         if (this.output) {
             this.output.innerHTML = '<div class="log-line system">> Готов!</div>';
+        }
+    }
+
+    clearConsoleAlgorithm() {
+        if (this.outputAlg) {
+            this.outputAlg.innerHTML = '<div class="log-line system-alg">> Пусто!</div>';
         }
     }
 
@@ -51,7 +58,6 @@ class ControlsManager {
                 if (this.blocksContainer) {
                     this.blocksContainer.innerHTML = '';
                 }
-                this.logToConsole('Рабочая область очищена');
             });
         }
     }
@@ -59,9 +65,9 @@ class ControlsManager {
     setupRunBtn() {
         if (this.runBtn) {
             this.runBtn.addEventListener('click', () => {
-                this.clearConsole();
+                this.clearConsoleAlgorithm();
                 if (typeof Interpreter !== 'undefined') {
-                    const interpreter = new Interpreter((msg, type) => this.logToConsoleAlgorithm(msg, type));
+                    const interpreter = new Interpreter(this.logToConsoleAlgorithm.bind(this));
                     interpreter.runAlgorithm();
 
                     const event = new CustomEvent('programRun', { 
@@ -80,6 +86,16 @@ class ControlsManager {
             this.clearConsoleBtn.addEventListener('click', () => {
                 if (this.output) {
                     this.clearConsole();
+                }
+            });
+        }
+    }
+
+    setupClearConsoleBtnAlg() {
+        if (this.clearConsoleBtnAlg) {
+            this.clearConsoleBtnAlg.addEventListener('click', () => {
+                if (this.outputAlg) {
+                    this.clearConsoleAlgorithm();
                 }
             });
         }
