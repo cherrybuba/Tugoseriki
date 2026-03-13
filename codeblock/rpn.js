@@ -1,19 +1,22 @@
 class RPN
 {
     static precedence = {
-        '+': 2,
-        '-': 2,
-        '*': 3,
-        '/': 3,
-        '%': 3,
-        '^': 5,
-        'u-': 4,
-        '>': 1,
-        '<': 1,
-        '>=': 1,
-        '>=': 1,
-        '!=': 1,
-        '==': 1
+        '+': 3,
+        '-': 3,
+        '*': 4,
+        '/': 4,
+        '%': 4,
+        '^': 6,
+        'u-': 5,
+        '>': 2,
+        '<': 2,
+        '>=': 2,
+        '>=': 2,
+        '!=': 2,
+        '==': 2,
+        '||': 0,
+        '&&': 1,
+        '!': 5
     };
 
     static associativity = {
@@ -29,7 +32,10 @@ class RPN
         '>=': 'left',
         '>=': 'left',
         '!=': 'left',
-        '==': 'left'
+        '==': 'left',
+        '||': 'left',
+        '&&': 'left',
+        '!': 'right'
     };
 
     static shuntingYard(expr) {
@@ -44,7 +50,7 @@ class RPN
             if (this.isUnary(token, prevToken)) {
                 token = 'u-';
             }
-            if (this.isNumber(token) || this.isVariable(token)) {
+            if (this.isNumber(token) || this.isVariable(token) || /\[(.*)\]$/.test(token)) {
                 output.push(token);
             } else if (this.isOperator(token)) {
                 while (stack.length > 0 &&
@@ -86,16 +92,35 @@ class RPN
         for (let token of tokens) {
             if (this.isVariable(token)) {
                 if (!variables.has(token)) throw new ReferenceError(`Переменная ${token} не объявленна`);
+                if (variables.get(token).type === 'array')
+                    throw new SyntaxError(`Массив ${token} не может использоваться в выражении (требуется обращение по индексу)`);
                 stack.push(variables.get(token).value);
+            } else if (/\[(.*)\]$/.test(token)) {
+                const arrName = token.slice(0, token.indexOf('['));
+                if (!variables.has(arrName)) throw new ReferenceError(`Переменная ${arrName} не объявленна`);
+                if (variables.get(arrName).type === 'number') {
+                    throw new SyntaxError(`${arrName} - численная переменная, обращение по индексу не возможно`);
+                }
+                let index = token.slice(token.indexOf('[') + 1, token.indexOf(']'));
+                index = this.calculate(variables, index);
+                if (index < 0 || index >= variables.get(arrName).value.length) {
+                    throw new ReferenceError(`Индекс ${index} выходит за пределы массива ${arrName}`);
+                }
+                stack.push(variables.get(arrName).value[index]);
             } else if (this.isNumber(token)) {
                 stack.push(parseInt(token));
             } else if (token === 'u-') {
                 const a = stack.pop();
-                if (a === undefined)
-                {
+                if (a === undefined) {
                     throw new SyntaxError('Недостаточно операндов');
                 }
                 stack.push(-a);
+            } else if (token === '!') {
+                const a = stack.pop();
+                if (a === undefined) {
+                    throw new SyntaxError('Недостаточно операндов');
+                }
+                stack.push(Number(!a));
             } else if (this.isOperator(token)) {
                 const b = stack.pop();
                 const a = stack.pop();
@@ -129,6 +154,10 @@ class RPN
                         stack.push(Number(a == b)); break;
                     case '!=':
                         stack.push(Number(a != b)); break;
+                    case '||':
+                        stack.push(Number(a || b)); break;
+                    case '&&':
+                        stack.push(Number(a && b)); break;
                 }
             }
         }
@@ -167,14 +196,21 @@ class RPN
                 if (this.isDigit(char)) {
                     bufferType = 'number';
                 } else if (this.isLetter(char)) {
-                    bufferType = 'variable'
-                } else if (this.isComparisonSymbol(char)) {
-                    bufferType = 'compare';
+                    bufferType = 'variable';
+                } else if (this.isLogicSymbol(char)) {
+                    bufferType = 'logic';
                 }
             }
-            if (this.isDigit(char)) {
-                if (bufferType === 'compare') {
-                    if (this.isComparisonOperator(buffer)) {
+            if (bufferType === 'array' && char === ']') {
+                buffer += char;
+                tokens.push(buffer);
+                buffer = '';
+                bufferType = '';
+            } else if (bufferType === 'array') {
+                buffer += char;
+            } else if (this.isDigit(char)) {
+                if (bufferType === 'logic') {
+                    if (this.isLogicOperator(buffer)) {
                         tokens.push(buffer);
                         buffer = char;
                         bufferType = 'number';
@@ -183,8 +219,8 @@ class RPN
                     }
                 } else buffer += char;
             } else if (this.isVariableSymbol(char)) {
-                if (bufferType === 'compare') {
-                    if (this.isComparisonOperator(buffer)) {
+                if (bufferType === 'logic') {
+                    if (this.isLogicOperator(buffer)) {
                         tokens.push(buffer);
                         buffer = char;
                         bufferType = 'variable';
@@ -194,15 +230,18 @@ class RPN
                 } else if (bufferType === 'number') {
                     throw new SyntaxError('Недопустимое имя переменной - ' + buffer + char);
                 } else buffer += char;
-            } else if (this.isComparisonSymbol(char)) {
+            } else if (this.isLogicSymbol(char)) {
                 if (bufferType === 'number' || bufferType === 'variable') {
                     tokens.push(buffer);
                     buffer = char;
-                    bufferType = 'compare';
+                    bufferType = 'logic';
                 } else buffer += char;
+            } else if (bufferType === 'variable' && char === '[') {
+                bufferType = 'array';
+                buffer += char;
             } else {
                 if (buffer) {
-                    if (bufferType === 'compare' && !this.isComparisonOperator(buffer)) {
+                    if (bufferType === 'logic' && !this.isLogicOperator(buffer)) {
                         throw new SyntaxError('Недопустимый оператор сравнения - ' + buffer);
                     }
                     tokens.push(buffer);
@@ -234,16 +273,16 @@ class RPN
         return ['+', '-', '*', '/', '%', '^', 'u-'].includes(char);
     }
 
-    static isComparisonSymbol (char) {
-        return ['>', '<', '=', '!'].includes(char);
+    static isLogicSymbol (char) {
+        return ['>', '<', '=', '!', '|', '&'].includes(char);
     }
 
-    static isComparisonOperator (token) {
-        return ['>', '<', '>=', '<=', '!=', '=='].includes(token);
+    static isLogicOperator (token) {
+        return ['>', '<', '>=', '<=', '!=', '==', '||', '&&', '!'].includes(token);
     }
 
     static isOperator(token) {
-        return ['+', '-', '*', '/', '%', '^', 'u-', '>', '<', '>=', '<=', '!=', '=='].includes(token);
+        return ['+', '-', '*', '/', '%', '^', 'u-', '>', '<', '>=', '<=', '!=', '==', '&&', '||', '!'].includes(token);
     }
 
     static isVariableSymbol(char) {
@@ -264,4 +303,3 @@ class RPN
         return !isNaN(token);
     }
 }
-
