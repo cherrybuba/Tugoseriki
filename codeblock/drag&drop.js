@@ -11,10 +11,10 @@ class ConnectionPoint {
         point.className = `connection-point connection-${this.type}`;
         point.dataset.type = this.type;
         point.dataset.parent = this.parentBlock.element.dataset.blockId;
-        
+
         point.addEventListener('mouseenter', () => this.highlight());
         point.addEventListener('mouseleave', () => this.unhighlight());
-        
+
         return point;
     }
 
@@ -44,30 +44,30 @@ class Block {
         this.workspace = workspace;
         this.onLog = onLog;
         this.onLogAlg = onLogAlg;
-        
+
         this.isMoving = false;
         this.offset = { x: 0, y: 0 };
         this.startMousePosition = { x: 0, y: 0 };
         this.startElementPosition = { x: 0, y: 0 };
-        
+
         this.allAttached = [];
         this.parent = null;
         this.nestedParent = null;
-        
+
         this.connectionPoints = {
             top: null,
             bottom: null
         };
         this.snapThreshold = 30;
         this.currentScale = 1;
-        
+
         this.moveBlock = this.moveBlock.bind(this);
         this.stopBlockMove = this.stopBlockMove.bind(this);
         this.checkConnection = this.checkConnection.bind(this);
         this.updateScale = this.updateScale.bind(this);
         this.handleDragStart = this.handleDragStart.bind(this);
         this.handleDragEnd = this.handleDragEnd.bind(this);
-        
+
         this.element.classList.add('canvas-block');
         this.element.style.position = 'absolute';
         this.element.removeAttribute('id');
@@ -98,7 +98,7 @@ class Block {
         this.createConnectionPoints();
         this.addMovement();
         this.setupScaleListener();
-        
+
         this.element.blockInstance = this;
     }
 
@@ -133,7 +133,7 @@ class Block {
 
         const scaledX = x - blockWidth / 2;
         const scaledY = y - blockHeight / 2;
-        
+
         this.element.style.left = scaledX + 'px';
         this.element.style.top = scaledY + 'px';
         this.element.style.visibility = 'visible';
@@ -283,12 +283,6 @@ class Block {
             }
         });
 
-        [select, indexInput, valueInput].forEach(el => {
-            el.addEventListener('mousedown', (e) => e.stopPropagation());
-            el.addEventListener('click', (e) => e.stopPropagation());
-        });
-    }
-    
     addVariableNameInput() {
         const inputsGroup = document.createElement('div');
         inputsGroup.className = 'block-inputs-group';
@@ -509,7 +503,7 @@ class Block {
             this.addElseContainer();
             elseButton.classList.add('hidden');
         });
-        
+
         buttonContainer.appendChild(elseButton);
         this.element.appendChild(buttonContainer);
     }
@@ -558,10 +552,10 @@ class Block {
         elseBlocksContainer.addEventListener('dragover', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            
+
             if (DragDropManager.draggedBlock && DragDropManager.draggedBlock.blockInstance) {
                 const draggedInstance = DragDropManager.draggedBlock.blockInstance;
-                
+
                 if (draggedInstance !== this && !this.isAncestorOf(draggedInstance)) {
                     elseBlocksContainer.classList.add('drag-over');
                 }
@@ -577,7 +571,7 @@ class Block {
         elseBlocksContainer.addEventListener('drop', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            
+
             elseBlocksContainer.classList.remove('drag-over');
 
             const draggedBlock = DragDropManager.draggedBlock;
@@ -604,7 +598,7 @@ class Block {
         if (elseContainer) {
             elseContainer.remove();
         }
-        
+
         this.elseBlocks = null;
         this.elseBlocksContainer = null;
         
@@ -612,7 +606,7 @@ class Block {
         if (elseButton) {
             elseButton.classList.remove('hidden');
         }
-        
+
         let rootBlock = this;
         while (rootBlock.parent) {
             rootBlock = rootBlock.parent;
@@ -622,18 +616,18 @@ class Block {
 
     handleDropInElseContainer(draggedElement, container) {
         const block = draggedElement.blockInstance;
-        
+
         if (block.element.parentElement === container) return;
-        
+
         const oldNestedParent = block.nestedParent;
         const oldParentBlock = block.parent;
-        
+
         const blocksToMove = this.getAllBlocksInChain(block);
-        
+
         for (const blockToMove of blocksToMove) {
             blockToMove.detachFromAll();
         }
-        
+
         let success = true;
         for (const blockToMove of blocksToMove) {
             if (!this.addBlockToElse(blockToMove, container)) {
@@ -641,10 +635,10 @@ class Block {
                 break;
             }
         }
-        
+
         if (success) {
             if (this.onLog) this.onLog('Блоки перемещены в else');
-            
+
             if (oldNestedParent) {
                 let rootBlock = oldNestedParent;
                 while (rootBlock.parent) {
@@ -664,7 +658,7 @@ class Block {
 
     addBlockToElse(block, container) {
         if (!block || !container) return false;
-        
+
         block.element.style.position = 'relative';
         block.element.style.left = '';
         block.element.style.top = '';
@@ -683,28 +677,28 @@ class Block {
         if (placeholder) {
             placeholder.remove();
         }
-        
+
         container.appendChild(block.element);
-        
+
         block.nestedParent = this;
-        
+
         if (!this.elseBlocks) {
             this.elseBlocks = [];
         }
         this.elseBlocks.push(block);
-        
+
         let rootBlock = this;
         while (rootBlock.parent) {
             rootBlock = rootBlock.parent;
         }
         rootBlock.updateAllAttachedPositions();
-        
+
         return true;
     }
 
     removeBlockFromElse(block) {
         if (!block || !this.elseBlocks) return false;
-        
+
         const index = this.elseBlocks.indexOf(block);
         if (index !== -1) {
             this.elseBlocks.splice(index, 1);
@@ -725,15 +719,15 @@ class Block {
                 this.elseBlocksContainer.appendChild(placeholder);
             }
         }
-        
+
         block.nestedParent = null;
-        
+
         let rootBlock = this;
         while (rootBlock.parent) {
             rootBlock = rootBlock.parent;
         }
         rootBlock.updateAllAttachedPositions();
-        
+
         return true;
     }
 
@@ -746,16 +740,16 @@ class Block {
         placeholder.className = 'nested-placeholder';
         placeholder.textContent = '⟳ Перетащите блоки сюда';
         container.appendChild(placeholder);
-        
+
         this.element.appendChild(container);
 
         container.addEventListener('dragover', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            
+
             if (DragDropManager.draggedBlock && DragDropManager.draggedBlock.blockInstance) {
                 const draggedInstance = DragDropManager.draggedBlock.blockInstance;
-                
+
                 if (draggedInstance !== this && !this.isAncestorOf(draggedInstance)) {
                     container.classList.add('drag-over');
                 }
@@ -771,7 +765,7 @@ class Block {
         container.addEventListener('drop', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            
+
             container.classList.remove('drag-over');
 
             const draggedBlock = DragDropManager.draggedBlock;
@@ -788,18 +782,18 @@ class Block {
 
     handleDropInContainer(e, draggedElement, container) {
         const block = draggedElement.blockInstance;
-        
+
         if (block.element.parentElement === container) return;
-        
+
         const oldNestedParent = block.nestedParent;
         const oldParentBlock = block.parent;
-        
+
         const blocksToMove = this.getAllBlocksInChain(block);
-        
+
         for (const blockToMove of blocksToMove) {
             blockToMove.detachFromAll();
         }
-        
+
         let success = true;
         for (const blockToMove of blocksToMove) {
             if (!this.addBlockToNested(blockToMove, container)) {
@@ -807,10 +801,10 @@ class Block {
                 break;
             }
         }
-        
+
         if (success) {
             if (this.onLog) this.onLog('Блоки перемещены в контейнер');
-            
+
             if (oldNestedParent) {
                 let rootBlock = oldNestedParent;
                 while (rootBlock.parent) {
@@ -838,21 +832,21 @@ class Block {
 
     getAllBlocksInChain(block) {
         const blocks = [block];
-        
+
         const addAttachedBlocks = (b) => {
             for (const attached of b.allAttached) {
                 blocks.push(attached);
                 addAttachedBlocks(attached);
             }
         };
-        
+
         addAttachedBlocks(block);
         return blocks;
     }
 
     addBlockToNested(block, container) {
         if (!block || !container) return false;
-        
+
         block.element.style.position = 'relative';
         block.element.style.left = '';
         block.element.style.top = '';
@@ -871,28 +865,28 @@ class Block {
         if (placeholder) {
             placeholder.remove();
         }
-        
+
         container.appendChild(block.element);
-        
+
         block.nestedParent = this;
-        
+
         if (!this.nestedBlocks) {
             this.nestedBlocks = [];
         }
         this.nestedBlocks.push(block);
-        
+
         let rootBlock = this;
         while (rootBlock.parent) {
             rootBlock = rootBlock.parent;
         }
         rootBlock.updateAllAttachedPositions();
-        
+
         return true;
     }
 
     removeBlockFromNested(block) {
         if (!block || !this.nestedBlocks) return false;
-        
+
         const index = this.nestedBlocks.indexOf(block);
         if (index !== -1) {
             this.nestedBlocks.splice(index, 1);
@@ -914,15 +908,15 @@ class Block {
                 container.appendChild(placeholder);
             }
         }
-        
+
         block.nestedParent = null;
-        
+
         return true;
     }
 
     createNestedBlock(sourceElement, container) {
         const newBlockElement = sourceElement.cloneNode(true);
-        
+
         const nestedBlock = new Block(
             newBlockElement,
             container,
@@ -940,7 +934,7 @@ class Block {
         rootBlock.updateAllAttachedPositions();
 
         if (this.onLog) this.onLog('Блок добавлен в контейнер');
-        
+
         return nestedBlock;
     }
 
@@ -966,7 +960,7 @@ class Block {
         if (this.parent) {
             this.detachFromParent();
         }
-        
+
         if (this.nestedParent) {
             if (this.nestedParent.nestedBlocks && this.nestedParent.nestedBlocks.includes(this)) {
                 this.nestedParent.removeBlockFromNested(this);
@@ -974,7 +968,7 @@ class Block {
                 this.nestedParent.removeBlockFromElse(this);
             }
         }
-        
+
         if (this.allAttached.length > 0) {
             const attachedCopy = [...this.allAttached];
             for (const attached of attachedCopy) {
@@ -985,12 +979,12 @@ class Block {
 
     addMovement() {
         this.element.setAttribute('draggable', 'true');
-        
+
         this.element.addEventListener('dragstart', this.handleDragStart);
         this.element.addEventListener('dragend', this.handleDragEnd);
-        
+
         this.element.addEventListener('mousedown', (e) => {
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || 
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' ||
                 e.target.classList.contains('connection-point') ||
                 e.target.classList.contains('block-delete-btn') ||
                 e.target.classList.contains('nested-container') ||
@@ -1012,10 +1006,10 @@ class Block {
                 x: (e.clientX - workspaceRect.left) / this.currentScale,
                 y: (e.clientY - workspaceRect.top) / this.currentScale
             };
-            
+
             const currentLeft = parseFloat(this.element.style.left) || 0;
             const currentTop = parseFloat(this.element.style.top) || 0;
-            
+
             this.startElementPosition = {
                 x: currentLeft,
                 y: currentTop
@@ -1025,9 +1019,9 @@ class Block {
                 const rect = this.element.getBoundingClientRect();
                 const globalX = (rect.left - workspaceRect.left) / this.currentScale;
                 const globalY = (rect.top - workspaceRect.top) / this.currentScale;
-                
+
                 const blocksToMove = this.getAllBlocksInChain(this);
-                
+
                 for (const block of blocksToMove) {
                     if (block.nestedParent) {
                         if (block.nestedParent.nestedBlocks && block.nestedParent.nestedBlocks.includes(block)) {
@@ -1037,7 +1031,7 @@ class Block {
                         }
                     }
                 }
-                
+
                 for (const block of blocksToMove) {
                     this.blocksContainer.appendChild(block.element);
                     block.element.style.position = 'absolute';
@@ -1051,15 +1045,15 @@ class Block {
                         block.connectionPoints.bottom.element.classList.remove('hidden');
                     }
                 }
-                
+
                 this.element.style.left = globalX + 'px';
                 this.element.style.top = globalY + 'px';
-                
+
                 this.startElementPosition = {
                     x: globalX,
                     y: globalY
                 };
-                
+
                 if (oldNestedParent) {
                     let rootBlock = oldNestedParent;
                     while (rootBlock.parent) {
@@ -1071,13 +1065,13 @@ class Block {
 
             if (this.parent) {
                 const blocksToMove = this.getAllBlocksInChain(this);
-                
+
                 for (const block of blocksToMove) {
                     if (block.parent) {
                         block.detachFromParent();
                     }
                 }
-                
+
                 if (oldParent) {
                     let rootBlock = oldParent;
                     while (rootBlock.parent) {
@@ -1088,7 +1082,7 @@ class Block {
             }
 
             this.isMoving = true;
-            
+
             document.removeEventListener('mousemove', this.moveBlock);
             document.removeEventListener('mouseup', this.stopBlockMove);
 
@@ -1105,14 +1099,14 @@ class Block {
 
     handleDragStart(e) {
         const blocksToMove = this.getAllBlocksInChain(this);
-        
+
         DragDropManager.draggedBlock = this.element;
         DragDropManager.draggedBlock.blockInstance = this;
         DragDropManager.draggedBlocks = blocksToMove;
-        
+
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('text/plain', this.element.dataset.blockId);
-        
+
         setTimeout(() => {
             for (const block of blocksToMove) {
                 block.element.style.opacity = '0.5';
@@ -1122,11 +1116,11 @@ class Block {
 
     handleDragEnd(e) {
         const blocksToMove = DragDropManager.draggedBlocks || [this];
-        
+
         for (const block of blocksToMove) {
             block.element.style.opacity = '1';
         }
-        
+
         DragDropManager.draggedBlock = null;
         DragDropManager.draggedBlocks = null;
     }
@@ -1139,13 +1133,13 @@ class Block {
         this.updateScale();
 
         const workspaceRect = this.workspace.getBoundingClientRect();
-        
+
         const currentMouseX = (e.clientX - workspaceRect.left) / this.currentScale;
         const currentMouseY = (e.clientY - workspaceRect.top) / this.currentScale;
-        
+
         const deltaX = currentMouseX - this.startMousePosition.x;
         const deltaY = currentMouseY - this.startMousePosition.y;
-        
+
         let newX = this.startElementPosition.x + deltaX;
         let newY = this.startElementPosition.y + deltaY;
 
@@ -1162,9 +1156,9 @@ class Block {
         const blockHeight = this.element.offsetHeight;
 
         const isOutside = (
-            newX < -50 || 
+            newX < -50 ||
             newX > workspaceWidth - blockWidth + 50 ||
-            newY < -50 || 
+            newY < -50 ||
             newY > workspaceHeight - blockHeight + 50
         );
 
@@ -1187,25 +1181,25 @@ class Block {
         const elementsUnderCursor = document.elementsFromPoint(e.clientX, e.clientY);
         const nestedContainer = elementsUnderCursor.find(el => el.classList.contains('nested-container'));
         const elseContainer = elementsUnderCursor.find(el => el.classList.contains('else-blocks-container'));
-        
+
         if (nestedContainer && !this.isOutsideWorkspace) {
             const parentBlock = nestedContainer.closest('.canvas-block').blockInstance;
             if (parentBlock && parentBlock !== this && !this.isAncestorOf(parentBlock)) {
                 const blocksToMove = this.getAllBlocksInChain(this);
-                
+
                 for (const block of blocksToMove) {
                     parentBlock.addBlockToNested(block, nestedContainer);
                 }
-                
+
                 this.element.style.left = '';
                 this.element.style.top = '';
-                
+
                 let rootBlock = this;
                 while (rootBlock.parent) {
                     rootBlock = rootBlock.parent;
                 }
                 rootBlock.updateAllAttachedPositions();
-                
+
                 this.removeAllHighlights();
                 document.removeEventListener('mousemove', this.moveBlock);
                 document.removeEventListener('mouseup', this.stopBlockMove, { capture: true });
@@ -1213,25 +1207,25 @@ class Block {
                 return;
             }
         }
-        
+
         if (elseContainer && !this.isOutsideWorkspace) {
             const parentBlock = elseContainer.closest('.canvas-block').blockInstance;
             if (parentBlock && parentBlock !== this && !this.isAncestorOf(parentBlock)) {
                 const blocksToMove = this.getAllBlocksInChain(this);
-                
+
                 for (const block of blocksToMove) {
                     parentBlock.addBlockToElse(block, elseContainer);
                 }
-                
+
                 this.element.style.left = '';
                 this.element.style.top = '';
-                
+
                 let rootBlock = this;
                 while (rootBlock.parent) {
                     rootBlock = rootBlock.parent;
                 }
                 rootBlock.updateAllAttachedPositions();
-                
+
                 this.removeAllHighlights();
                 document.removeEventListener('mousemove', this.moveBlock);
                 document.removeEventListener('mouseup', this.stopBlockMove, { capture: true });
@@ -1244,7 +1238,7 @@ class Block {
             this.delete();
         } else {
             const connected = this.tryConnectToParent();
-            
+
             if (!connected) {
                 let rootBlock = this;
                 while (rootBlock.parent) {
@@ -1269,12 +1263,12 @@ class Block {
         const potentialParents = Array.from(this.blocksContainer.children)
             .map(el => el.blockInstance)
             .filter(block => {
-                return block && 
-                       block !== this && 
+                return block &&
+                       block !== this &&
                        block !== this.parent &&
                        !this.isDescendantOf(block) &&
                        !block.nestedParent &&
-                       block.connectionPoints && 
+                       block.connectionPoints &&
                        block.connectionPoints.bottom;
             });
 
@@ -1284,16 +1278,16 @@ class Block {
 
         for (const block of potentialParents) {
             if (!block.connectionPoints.bottom) continue;
-            
+
             const bottomPoint = block.connectionPoints.bottom.getPosition();
-            const topPoint = { 
-                x: currentRect.left + currentRect.width / 2, 
-                y: currentRect.top 
+            const topPoint = {
+                x: currentRect.left + currentRect.width / 2,
+                y: currentRect.top
             };
-            
+
             const distance = Math.hypot(bottomPoint.x - topPoint.x, bottomPoint.y - topPoint.y);
             const horizontalDiff = Math.abs(bottomPoint.x - topPoint.x);
-            
+
             if (distance < minDistance && horizontalDiff < 30) {
                 minDistance = distance;
                 nearestBlock = block;
@@ -1301,7 +1295,7 @@ class Block {
         }
 
         this.removeAllHighlights();
-        
+
         if (nearestBlock) {
             if (nearestBlock.connectionPoints.bottom) {
                 nearestBlock.connectionPoints.bottom.element.classList.add('connection-highlight');
@@ -1318,12 +1312,12 @@ class Block {
         const potentialParents = Array.from(this.blocksContainer.children)
             .map(el => el.blockInstance)
             .filter(block => {
-                return block && 
-                       block !== this && 
+                return block &&
+                       block !== this &&
                        block !== this.parent &&
                        !this.isDescendantOf(block) &&
                        !block.nestedParent &&
-                       block.connectionPoints && 
+                       block.connectionPoints &&
                        block.connectionPoints.bottom;
             });
 
@@ -1333,16 +1327,16 @@ class Block {
 
         for (const block of potentialParents) {
             if (!block.connectionPoints.bottom) continue;
-            
+
             const bottomPoint = block.connectionPoints.bottom.getPosition();
-            const topPoint = { 
-                x: currentRect.left + currentRect.width / 2, 
-                y: currentRect.top 
+            const topPoint = {
+                x: currentRect.left + currentRect.width / 2,
+                y: currentRect.top
             };
-            
+
             const distance = Math.hypot(bottomPoint.x - topPoint.x, bottomPoint.y - topPoint.y);
             const horizontalDiff = Math.abs(bottomPoint.x - topPoint.x);
-            
+
             if (distance < minDistance && horizontalDiff < 20) {
                 minDistance = distance;
                 bestMatch = block;
@@ -1363,13 +1357,13 @@ class Block {
         }
 
         parentBlock.allAttached.push(this);
-        
+
         this.parent = parentBlock;
 
         const parentLeft = parseFloat(parentBlock.element.style.left) || 0;
         const parentTop = parseFloat(parentBlock.element.style.top) || 0;
         const parentHeight = parentBlock.element.offsetHeight;
-        
+
         this.element.style.left = parentLeft + 'px';
         this.element.style.top = (parentTop + parentHeight) + 'px';
 
@@ -1378,7 +1372,7 @@ class Block {
         if (this.connectionPoints.top) {
             this.connectionPoints.top.element.classList.add('hidden');
         }
-        
+
         if (parentBlock.connectionPoints.bottom) {
             parentBlock.connectionPoints.bottom.element.classList.add('hidden');
         }
@@ -1392,48 +1386,48 @@ class Block {
             if (index !== -1) {
                 this.parent.allAttached.splice(index, 1);
             }
-            
+
             if (this.connectionPoints.top) {
                 this.connectionPoints.top.element.classList.remove('hidden');
             }
-            
+
             if (this.parent.connectionPoints.bottom) {
                 this.parent.connectionPoints.bottom.element.classList.remove('hidden');
             }
 
             const rect = this.element.getBoundingClientRect();
             const workspaceRect = this.workspace.getBoundingClientRect();
-            
+
             const globalX = (rect.left - workspaceRect.left) / this.currentScale;
             const globalY = (rect.top - workspaceRect.top) / this.currentScale;
-            
+
             this.blocksContainer.appendChild(this.element);
             this.element.style.left = globalX + 'px';
             this.element.style.top = globalY + 'px';
-            
+
             this.parent = null;
         }
     }
 
     updateAllAttachedPositions() {
         if (this.allAttached.length === 0) return;
-        
+
         const sortedAttached = [...this.allAttached].sort((a, b) => {
             const aTop = parseFloat(a.element.style.top) || 0;
             const bTop = parseFloat(b.element.style.top) || 0;
             return aTop - bTop;
         });
-        
+
         let currentY = parseFloat(this.element.style.top) + this.element.offsetHeight;
-        
+
         for (const attached of sortedAttached) {
             attached.element.style.left = this.element.style.left;
             attached.element.style.top = currentY + 'px';
-            
+
             if (attached.allAttached.length > 0) {
                 attached.updateAllAttachedPositions();
             }
-            
+
             currentY += attached.element.offsetHeight;
         }
     }
@@ -1449,26 +1443,26 @@ class Block {
 
     isAncestorOf(block) {
         if (!block) return false;
-        
+
         if (this.nestedBlocks) {
             for (const nested of this.nestedBlocks) {
                 if (nested === block) return true;
                 if (nested.isAncestorOf(block)) return true;
             }
         }
-        
+
         if (this.elseBlocks) {
             for (const elseBlock of this.elseBlocks) {
                 if (elseBlock === block) return true;
                 if (elseBlock.isAncestorOf(block)) return true;
             }
         }
-        
+
         for (const attached of this.allAttached) {
             if (attached === block) return true;
             if (attached.isAncestorOf(block)) return true;
         }
-        
+
         return false;
     }
 
@@ -1481,7 +1475,7 @@ class Block {
     delete() {
         const parentBlock = this.parent;
         const nestedParentBlock = this.nestedParent;
-        
+
         if (this.nestedBlocks) {
             const nestedCopy = [...this.nestedBlocks];
             for (const nestedBlock of nestedCopy) {
@@ -1489,7 +1483,7 @@ class Block {
             }
             this.nestedBlocks = [];
         }
-        
+
         if (this.elseBlocks) {
             const elseCopy = [...this.elseBlocks];
             for (const elseBlock of elseCopy) {
@@ -1499,22 +1493,22 @@ class Block {
         }
 
         const attachedCopy = [...this.allAttached];
-        
+
         for (const attached of attachedCopy) {
             attached.delete();
         }
-        
+
         if (this.parent) {
             const index = this.parent.allAttached.indexOf(this);
             if (index !== -1) {
                 this.parent.allAttached.splice(index, 1);
             }
-            
+
             if (this.parent.connectionPoints.bottom && this.parent.allAttached.length === 0) {
                 this.parent.connectionPoints.bottom.element.classList.remove('hidden');
             }
         }
-        
+
         if (this.nestedParent) {
             if (this.nestedParent.nestedBlocks && this.nestedParent.nestedBlocks.includes(this)) {
                 this.nestedParent.removeBlockFromNested(this);
@@ -1522,9 +1516,9 @@ class Block {
                 this.nestedParent.removeBlockFromElse(this);
             }
         }
-        
+
         this.element.remove();
-        
+
         if (parentBlock) {
             let rootBlock = parentBlock;
             while (rootBlock.parent) {
@@ -1538,7 +1532,7 @@ class Block {
             }
             rootBlock.updateAllAttachedPositions();
         }
-        
+
         if (this.onLog) this.onLog('Блок удален');
     }
 
@@ -1569,7 +1563,7 @@ class Block {
     getNestedBlocks() {
         return this.nestedBlocks || [];
     }
-    
+
     getElseBlocks() {
         return this.elseBlocks || [];
     }
@@ -1584,7 +1578,7 @@ class DragDropManager {
         this.blocksContainer = blocksContainer;
         this.onLog = onLog;
         this.onLogAlg = onLogAlg;
-        
+
         this.currentScale = 1;
         this.lastHighlightedContainer = null;
         this.lastHighlightedElseContainer = null;
@@ -1602,7 +1596,7 @@ class DragDropManager {
         }
 
         document.addEventListener('dragover', this.globalDragOver.bind(this));
-        
+
         this.setupScaleListener();
     }
 
@@ -1617,50 +1611,50 @@ class DragDropManager {
     globalDragOver(e) {
         const container = e.target.closest('.nested-container');
         const elseContainer = e.target.closest('.else-blocks-container');
-        
+
         if (this.lastHighlightedContainer && this.lastHighlightedContainer !== container) {
             this.lastHighlightedContainer.classList.remove('drag-over');
             this.lastHighlightedContainer = null;
         }
-        
+
         if (this.lastHighlightedElseContainer && this.lastHighlightedElseContainer !== elseContainer) {
             this.lastHighlightedElseContainer.classList.remove('drag-over');
             this.lastHighlightedElseContainer = null;
         }
-        
+
         if (container && DragDropManager.draggedBlock) {
             const parentBlock = container.closest('.canvas-block').blockInstance;
-            
+
             if (parentBlock) {
                 let canHighlight = true;
-                
+
                 if (DragDropManager.draggedBlock.blockInstance) {
                     const draggedInstance = DragDropManager.draggedBlock.blockInstance;
                     if (parentBlock.isAncestorOf(draggedInstance) || parentBlock === draggedInstance) {
                         canHighlight = false;
                     }
                 }
-                
+
                 if (canHighlight) {
                     container.classList.add('drag-over');
                     this.lastHighlightedContainer = container;
                 }
             }
         }
-        
+
         if (elseContainer && DragDropManager.draggedBlock) {
             const parentBlock = elseContainer.closest('.canvas-block').blockInstance;
-            
+
             if (parentBlock) {
                 let canHighlight = true;
-                
+
                 if (DragDropManager.draggedBlock.blockInstance) {
                     const draggedInstance = DragDropManager.draggedBlock.blockInstance;
                     if (parentBlock.isAncestorOf(draggedInstance) || parentBlock === draggedInstance) {
                         canHighlight = false;
                     }
                 }
-                
+
                 if (canHighlight) {
                     elseContainer.classList.add('drag-over');
                     this.lastHighlightedElseContainer = elseContainer;
@@ -1672,16 +1666,16 @@ class DragDropManager {
     dragStart = (e) => {
         const block = e.currentTarget;
         DragDropManager.draggedBlock = block;
-        
+
         if (block.blockInstance) {
             DragDropManager.draggedBlock.blockInstance = block.blockInstance;
         }
-        
+
         e.dataTransfer.effectAllowed = 'copy';
         e.dataTransfer.setData('text/html', block.outerHTML);
         e.dataTransfer.setData('type', block.dataset.type || 'default');
         e.dataTransfer.setData('blockId', block.blockInstance ? block.blockInstance.element.dataset.blockId : 'new_' + Date.now());
-        
+
         setTimeout(() => block.style.opacity = '0.5', 0);
     };
 
@@ -1689,7 +1683,7 @@ class DragDropManager {
         document.querySelectorAll('.nested-container, .else-blocks-container').forEach(container => {
             container.classList.remove('drag-over');
         });
-        
+
         e.currentTarget.style.opacity = '1';
         DragDropManager.draggedBlock = null;
         DragDropManager.draggedBlocks = null;
@@ -1704,17 +1698,17 @@ class DragDropManager {
 
     drop = (e) => {
         e.preventDefault();
-        
+
         document.querySelectorAll('.nested-container, .else-blocks-container').forEach(container => {
             container.classList.remove('drag-over');
         });
-        
+
         const targetContainer = e.target.closest('.nested-container');
         const targetElseContainer = e.target.closest('.else-blocks-container');
         if (targetContainer || targetElseContainer) {
             return;
         }
-        
+
         if (!DragDropManager.draggedBlock || !this.workspace) return;
 
         if (typeof window.scale !== 'undefined') {
@@ -1722,15 +1716,15 @@ class DragDropManager {
         }
 
         const workspaceRect = this.workspace.getBoundingClientRect();
-        
+
         const mouseX = (e.clientX - workspaceRect.left) / this.currentScale;
         const mouseY = (e.clientY - workspaceRect.top) / this.currentScale;
 
         const newBlockElement = DragDropManager.draggedBlock.cloneNode(true);
-        
+
         newBlockElement.removeAttribute('draggable');
         newBlockElement.classList.remove('draggable-item');
-        
+
         const block = new Block(newBlockElement, this.blocksContainer, this.workspace, this.onLog, this.onLogAlg);
         block.currentScale = this.currentScale;
         block.setPosition(mouseX, mouseY);
