@@ -178,110 +178,110 @@ class Block {
     }
 
     addArrayAssignmentInput() {
-    const inputsGroup = document.createElement('div');
-    inputsGroup.className = 'block-inputs-group';
+        const inputsGroup = document.createElement('div');
+        inputsGroup.className = 'block-inputs-group';
 
-    const select = document.createElement('select');
-    select.className = 'array-selector';
-    select.dataset.field = 'arraySelector';
+        const select = document.createElement('select');
+        select.className = 'array-selector';
+        select.dataset.field = 'arraySelector';
 
-    const defaultOption = document.createElement('option');
-    defaultOption.value = '';
-    defaultOption.textContent = 'Выберите массив';
-    select.appendChild(defaultOption);
-
-    const indexInput = document.createElement('input');
-    indexInput.type = 'text';
-    indexInput.placeholder = 'i';
-    indexInput.dataset.field = 'arrayIndex';
-    indexInput.className = 'array-index-input';
-    indexInput.inputMode = 'numeric';
-    indexInput.pattern = '[0-9]*';
-    indexInput.disabled = true;
-    indexInput.style.width = '50px';
-    indexInput.style.textAlign = 'center';
-
-    const valueInput = document.createElement('input');
-    valueInput.type = 'text';
-    valueInput.placeholder = 'Значение';
-    valueInput.dataset.field = 'arrayValue';
-    valueInput.className = 'array-value-input';
-    valueInput.disabled = true;
-    valueInput.style.flex = '1';
-
-    const rowContainer = document.createElement('div');
-    rowContainer.style.display = 'flex';
-    rowContainer.style.gap = '4px';
-    rowContainer.style.alignItems = 'center';
-
-    rowContainer.appendChild(indexInput);
-    rowContainer.appendChild(valueInput);
-
-    inputsGroup.appendChild(select);
-    inputsGroup.appendChild(rowContainer);
-    this.element.appendChild(inputsGroup);
-
-    const populateArraySelect = (select, defaultOption) => {
-        const currentValue = select.value;
-        select.innerHTML = '';
+        const defaultOption = document.createElement('option');
+        defaultOption.value = '';
+        defaultOption.textContent = 'Выберите массив';
         select.appendChild(defaultOption);
 
-        const arrayBlocks = this.blocksContainer.querySelectorAll('.canvas-block[data-type="array"]');
-        arrayBlocks.forEach(arrayBlock => {
-            const arrayName = arrayBlock.dataset.arrayName || '';
-            const arraySize = arrayBlock.dataset.arraySize || '0';
-            if (arrayName && arrayName.trim() !== '') {
-                const option = document.createElement('option');
-                option.value = arrayName;
-                option.textContent = `${arrayName} [${arraySize}]`;
-                select.appendChild(option);
+        const indexInput = document.createElement('input');
+        indexInput.type = 'text';
+        indexInput.placeholder = 'i';
+        indexInput.dataset.field = 'arrayIndex';
+        indexInput.className = 'array-index-input';
+        indexInput.inputMode = 'numeric';
+        indexInput.pattern = '[0-9]*';
+        indexInput.disabled = true;
+        indexInput.style.width = '50px';
+        indexInput.style.textAlign = 'center';
+
+        const valueInput = document.createElement('input');
+        valueInput.type = 'text';
+        valueInput.placeholder = 'Значение';
+        valueInput.dataset.field = 'arrayValue';
+        valueInput.className = 'array-value-input';
+        valueInput.disabled = true;
+        valueInput.style.flex = '1';
+
+        const rowContainer = document.createElement('div');
+        rowContainer.style.display = 'flex';
+        rowContainer.style.gap = '4px';
+        rowContainer.style.alignItems = 'center';
+
+        rowContainer.appendChild(indexInput);
+        rowContainer.appendChild(valueInput);
+
+        inputsGroup.appendChild(select);
+        inputsGroup.appendChild(rowContainer);
+        this.element.appendChild(inputsGroup);
+
+        const populateArraySelect = (select, defaultOption) => {
+            const currentValue = select.value;
+            select.innerHTML = '';
+            select.appendChild(defaultOption);
+
+            const arrayBlocks = this.blocksContainer.querySelectorAll('.canvas-block[data-type="array"]');
+            arrayBlocks.forEach(arrayBlock => {
+                const arrayName = arrayBlock.dataset.arrayName || '';
+                const arraySize = arrayBlock.dataset.arraySize || '0';
+                if (arrayName && arrayName.trim() !== '') {
+                    const option = document.createElement('option');
+                    option.value = arrayName;
+                    option.textContent = `${arrayName} [${arraySize}]`;
+                    select.appendChild(option);
+                }
+            });
+
+            if (currentValue) select.value = currentValue;
+        };
+
+        select.addEventListener('click', (e) => {
+            e.stopPropagation();
+            populateArraySelect(select, defaultOption);
+        });
+
+        select.addEventListener('change', () => {
+            const selectedArray = select.value;
+            if (selectedArray) {
+                this.element.dataset.selectedArray = selectedArray;
+                indexInput.disabled = false;
+                valueInput.disabled = false;
+            } else {
+                indexInput.disabled = true;
+                valueInput.disabled = true;
+                indexInput.value = '';
+                valueInput.value = '';
+                this.element.removeAttribute('data-selected-array');
+                this.element.removeAttribute('data-array-index');
+                this.element.removeAttribute('data-array-value');
             }
         });
 
-        if (currentValue) select.value = currentValue;
-    };
+        indexInput.addEventListener('input', (e) => {
+            if (this.element.dataset.selectedArray) {
+                e.target.value = e.target.value.replace(/[^0-9]/g, '');
+                this.element.dataset.arrayIndex = e.target.value;
+            }
+        });
 
-    select.addEventListener('click', (e) => {
-        e.stopPropagation();
-        populateArraySelect(select, defaultOption);
-    });
+        valueInput.addEventListener('input', () => {
+            if (this.element.dataset.selectedArray) {
+                this.element.dataset.arrayValue = valueInput.value;
+            }
+        });
 
-    select.addEventListener('change', () => {
-        const selectedArray = select.value;
-        if (selectedArray) {
-            this.element.dataset.selectedArray = selectedArray;
-            indexInput.disabled = false;
-            valueInput.disabled = false;
-        } else {
-            indexInput.disabled = true;
-            valueInput.disabled = true;
-            indexInput.value = '';
-            valueInput.value = '';
-            this.element.removeAttribute('data-selected-array');
-            this.element.removeAttribute('data-array-index');
-            this.element.removeAttribute('data-array-value');
-        }
-    });
-
-    indexInput.addEventListener('input', (e) => {
-        if (this.element.dataset.selectedArray) {
-            e.target.value = e.target.value.replace(/[^0-9]/g, '');
-            this.element.dataset.arrayIndex = e.target.value;
-        }
-    });
-
-    valueInput.addEventListener('input', () => {
-        if (this.element.dataset.selectedArray) {
-            this.element.dataset.arrayValue = valueInput.value;
-        }
-    });
-
-    [select, indexInput, valueInput].forEach(el => {
-        el.addEventListener('mousedown', (e) => e.stopPropagation());
-        el.addEventListener('click', (e) => e.stopPropagation());
-    });
-}
-
+        [select, indexInput, valueInput].forEach(el => {
+            el.addEventListener('mousedown', (e) => e.stopPropagation());
+            el.addEventListener('click', (e) => e.stopPropagation());
+        });
+    }
+    
     addVariableNameInput() {
         const inputsGroup = document.createElement('div');
         inputsGroup.className = 'block-inputs-group';
@@ -427,9 +427,9 @@ class Block {
     }
 
     addElseContainer() {
-        const elseContainer = document.createElement('div');
-        elseContainer.className = 'else-container';
-        elseContainer.dataset.parentId = this.element.dataset.blockId;
+        const elseBlocksContainer = document.createElement('div');
+        elseBlocksContainer.className = 'else-blocks-container';
+        elseBlocksContainer.dataset.parentId = this.element.dataset.blockId;
 
         const elseHeader = document.createElement('div');
         elseHeader.style.display = 'flex';
@@ -461,21 +461,20 @@ class Block {
 
         elseHeader.appendChild(elseLabel);
         elseHeader.appendChild(removeElseBtn);
-        elseContainer.appendChild(elseHeader);
-
-        const elseBlocksContainer = document.createElement('div');
-        elseBlocksContainer.className = 'else-blocks-container';
+        elseBlocksContainer.appendChild(elseHeader);
 
         const elsePlaceholder = document.createElement('div');
         elsePlaceholder.className = 'else-placeholder';
         elsePlaceholder.textContent = '⟳ Перетащите блоки сюда';
+        elsePlaceholder.style.padding = '8px';
+        elsePlaceholder.style.fontSize = '12px';
+        elsePlaceholder.style.color = 'rgba(255, 107, 107, 0.5)';
+        elsePlaceholder.style.textAlign = 'center';
         elseBlocksContainer.appendChild(elsePlaceholder);
 
-        elseContainer.appendChild(elseBlocksContainer);
-        this.element.appendChild(elseContainer);
+        this.element.appendChild(elseBlocksContainer);
 
         this.elseBlocks = [];
-        this.elseContainer = elseContainer;
         this.elseBlocksContainer = elseBlocksContainer;
 
         let rootBlock = this;
