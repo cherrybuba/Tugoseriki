@@ -70,8 +70,6 @@ class Block {
 
         this.element.classList.add('canvas-block');
         this.element.style.position = 'absolute';
-        this.element.style.opacity = '1';
-        this.element.style.willChange = 'left, top';
         this.element.removeAttribute('id');
 
         const blockId = 'block_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
@@ -93,7 +91,7 @@ class Block {
             this.addPrint();
         } else if (blockType === 'array'){
             this.addArrayInput();
-        } else if (blockType === 'assignmentArray'){
+        } else if (blockType === 'assignment array'){
             this.addArrayAssignmentInput();
         }
 
@@ -193,9 +191,6 @@ class Block {
         indexInput.placeholder = 'i';
         indexInput.dataset.field = 'arrayIndex';
         indexInput.className = 'array-index-input';
-        indexInput.disabled = true;
-        indexInput.style.width = '50px';
-        indexInput.style.textAlign = 'center';
 
         const valueInput = document.createElement('input');
         valueInput.type = 'text';
@@ -203,12 +198,9 @@ class Block {
         valueInput.dataset.field = 'arrayValue';
         valueInput.className = 'array-value-input';
         valueInput.disabled = true;
-        valueInput.style.flex = '1';
 
         const rowContainer = document.createElement('div');
-        rowContainer.style.display = 'flex';
-        rowContainer.style.gap = '4px';
-        rowContainer.style.alignItems = 'center';
+        rowContainer.className = 'row-container';
 
         rowContainer.appendChild(indexInput);
         rowContainer.appendChild(valueInput);
@@ -217,24 +209,53 @@ class Block {
         inputsGroup.appendChild(rowContainer);
         this.element.appendChild(inputsGroup);
 
+        const getPreviousBlocks = (block) => {
+            const previousBlocks = [];
+            let current = block.parent;
+            
+            while (current) {
+                previousBlocks.push(current);
+                
+                if (current.nestedBlocks && current.nestedBlocks.length > 0) {
+                    for (const nested of current.nestedBlocks) {
+                        previousBlocks.push(nested);
+                    }
+                }
+                if (current.elseBlocks && current.elseBlocks.length > 0) {
+                    for (const elseBlock of current.elseBlocks) {
+                        previousBlocks.push(elseBlock);
+                    }
+                }
+                
+                current = current.parent;
+            }
+            
+            return previousBlocks;
+        };
+
         const populateArraySelect = (select, defaultOption) => {
             const currentValue = select.value;
             select.innerHTML = '';
             select.appendChild(defaultOption);
 
-            const arrayBlocks = this.blocksContainer.querySelectorAll('.canvas-block[data-type="array"]');
-            arrayBlocks.forEach(arrayBlock => {
-                const arrayName = arrayBlock.dataset.arrayName || '';
-                const arraySize = arrayBlock.dataset.arraySize || '0';
-                if (arrayName && arrayName.trim() !== '') {
-                    const option = document.createElement('option');
-                    option.value = arrayName;
-                    option.textContent = `${arrayName} [${arraySize}]`;
-                    select.appendChild(option);
+            const previousBlocks = getPreviousBlocks(this);
+            
+            previousBlocks.forEach(block => {
+                if (block.element.dataset.type === 'array') {
+                    const arrayName = block.element.dataset.arrayName || '';
+                    if (arrayName && arrayName.trim() !== '') {
+                        const option = document.createElement('option');
+                        option.value = arrayName;
+                        option.textContent = `${arrayName}`;
+                        select.appendChild(option);
+                    }
                 }
             });
 
-            if (currentValue) select.value = currentValue;
+            if (currentValue) {
+                const exists = Array.from(select.options).some(opt => opt.value === currentValue);
+                if (exists) select.value = currentValue;
+            }
         };
 
         select.addEventListener('click', (e) => {
@@ -242,34 +263,25 @@ class Block {
             populateArraySelect(select, defaultOption);
         });
 
-    select.addEventListener('change', () => {
-        const selectedArray = select.value;
-        if (selectedArray) {
-            this.element.dataset.selectedArray = selectedArray;
-            indexInput.disabled = false;
-            valueInput.disabled = false;
-        } else {
-            indexInput.disabled = true;
-            valueInput.disabled = true;
-            indexInput.value = '';
-            valueInput.value = '';
-            this.element.removeAttribute('data-selected-array');
-            this.element.removeAttribute('data-array-index');
-            this.element.removeAttribute('data-array-value');
-        }
-    });
+        select.addEventListener('change', () => {
+            const selectedArray = select.value;
+            if (selectedArray) {
+                this.element.dataset.selectedArray = selectedArray;
+                valueInput.disabled = false;
+            } else {
+                valueInput.disabled = true;
+                valueInput.value = '';
+                this.element.removeAttribute('data-selected-array');
+                this.element.removeAttribute('data-array-index');
+                this.element.removeAttribute('data-array-value');
+            }
+        });
 
-    valueInput.addEventListener('input', () => {
-        if (this.element.dataset.selectedArray) {
-            this.element.dataset.arrayValue = valueInput.value;
-        }
-    });
-
-    [select, indexInput, valueInput].forEach(el => {
-        el.addEventListener('mousedown', (e) => e.stopPropagation());
-        el.addEventListener('click', (e) => e.stopPropagation());
-    });
-}
+        valueInput.addEventListener('input', () => {
+            if (this.element.dataset.selectedArray) {
+                this.element.dataset.arrayValue = valueInput.value;
+            }
+        });
 
     addVariableNameInput() {
         const inputsGroup = document.createElement('div');
@@ -313,27 +325,91 @@ class Block {
         inputsGroup.appendChild(valueInput);
         this.element.appendChild(inputsGroup);
 
+        const getPreviousBlocks = (block) => {
+            const previousBlocks = [];
+            let current = block.parent;
+            
+            while (current) {
+                previousBlocks.push(current);
+                
+                if (current.nestedBlocks && current.nestedBlocks.length > 0) {
+                    for (const nested of current.nestedBlocks) {
+                        previousBlocks.push(nested);
+                    }
+                }
+                if (current.elseBlocks && current.elseBlocks.length > 0) {
+                    for (const elseBlock of current.elseBlocks) {
+                        previousBlocks.push(elseBlock);
+                    }
+                }
+                
+                current = current.parent;
+            }
+            
+            return previousBlocks;
+        };
+
+        const validateBlock = () => {
+            const selectedVar = this.element.dataset.selectedVar;
+            if (!selectedVar) {
+                this.element.classList.remove('error-highlight');
+                return false;
+            }
+
+            const previousBlocks = getPreviousBlocks(this);
+            let variableExists = false;
+            
+            for (const block of previousBlocks) {
+                if (block.element.dataset.type === 'variable') {
+                    const varNames = (block.element.dataset.varName || '').replace(/\s+/g, '').split(',');
+                    if (varNames.includes(selectedVar)) {
+                        variableExists = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!variableExists) {
+                this.element.classList.add('error-highlight');
+                if (this.onLog) this.onLog(`Ошибка: переменная ${selectedVar} не объявлена выше`);
+                return false;
+            }
+
+            this.element.classList.remove('error-highlight');
+            return true;
+        };
+
         const populateVariableSelect = (select, defaultOption) => {
             const currentValue = select.value;
             select.innerHTML = '';
             select.appendChild(defaultOption);
 
-            const variableBlocks = this.blocksContainer.querySelectorAll('.canvas-block[data-type="variable"]');
-            variableBlocks.forEach(varBlock => {
-                const varNames = (varBlock.dataset.varName || '').replace(/\s+/g, '').split(',');
-                for (const name of varNames) {
-                    if (name && name.trim() !== '') {
-                        const option = document.createElement('option');
-                        option.value = name;
-                        option.textContent = name;
-                        select.appendChild(option);
+            const previousBlocks = getPreviousBlocks(this);
+            const variableNames = new Set();
+            
+            previousBlocks.forEach(block => {
+                if (block.element.dataset.type === 'variable') {
+                    const varNames = (block.element.dataset.varName || '').replace(/\s+/g, '').split(',');
+                    for (const name of varNames) {
+                        if (name && name.trim() !== '') {
+                            variableNames.add(name);
+                        }
                     }
                 }
             });
 
-            if (currentValue) {
+            Array.from(variableNames).sort().forEach(name => {
+                const option = document.createElement('option');
+                option.value = name;
+                option.textContent = name;
+                select.appendChild(option);
+            });
+
+            if (currentValue && variableNames.has(currentValue)) {
                 select.value = currentValue;
             }
+            
+            setTimeout(() => validateBlock(), 0);
         };
 
         select.addEventListener('click', (e) => {
@@ -353,19 +429,44 @@ class Block {
                 valueInput.placeholder = 'Новое значение';
                 this.element.removeAttribute('data-selected-var');
             }
+            setTimeout(() => validateBlock(), 0);
         });
 
         valueInput.addEventListener('input', () => {
             const selectedVar = this.element.dataset.selectedVar;
             if (selectedVar) {
                 this.element.dataset.newValue = valueInput.value;
+                validateBlock();
             }
         });
+
+        const observer = new MutationObserver(() => {
+            validateBlock();
+        });
+
+        observer.observe(this.element, {
+            attributes: true,
+            attributeFilter: ['data-parent', 'data-nestedparent', 'data-selected-var']
+        });
+
+        const originalDetachFromParent = this.detachFromParent;
+        this.detachFromParent = function() {
+            originalDetachFromParent.call(this);
+            setTimeout(() => validateBlock(), 0);
+        };
+
+        const originalAttachToParent = this.attachToParent;
+        this.attachToParent = function(parentBlock) {
+            originalAttachToParent.call(this, parentBlock);
+            setTimeout(() => validateBlock(), 0);
+        };
 
         select.addEventListener('mousedown', (e) => e.stopPropagation());
         select.addEventListener('click', (e) => e.stopPropagation());
         valueInput.addEventListener('mousedown', (e) => e.stopPropagation());
         valueInput.addEventListener('click', (e) => e.stopPropagation());
+        
+        setTimeout(() => validateBlock(), 100);
     }
 
     addConditionInput() {
@@ -391,24 +492,16 @@ class Block {
 
     addElseButton() {
         const buttonContainer = document.createElement('div');
-        buttonContainer.style.margin = '8px 0';
-        buttonContainer.style.textAlign = 'center';
-
+        buttonContainer.className = 'button-container';
+        
         const elseButton = document.createElement('button');
         elseButton.textContent = '+ else';
-        elseButton.style.padding = '4px 12px';
-        elseButton.style.backgroundColor = 'rgba(255, 107, 107, 0.2)';
-        elseButton.style.border = '1px solid #ff6b6b';
-        elseButton.style.borderRadius = '4px';
-        elseButton.style.color = '#ff6b6b';
-        elseButton.style.cursor = 'pointer';
-        elseButton.style.fontSize = '12px';
-        elseButton.style.fontWeight = 'bold';
-
+        elseButton.className = 'else-button';
+        
         elseButton.addEventListener('click', (e) => {
             e.stopPropagation();
             this.addElseContainer();
-            elseButton.style.display = 'none';
+            elseButton.classList.add('hidden');
         });
 
         buttonContainer.appendChild(elseButton);
@@ -421,28 +514,16 @@ class Block {
         elseBlocksContainer.dataset.parentId = this.element.dataset.blockId;
 
         const elseHeader = document.createElement('div');
-        elseHeader.style.display = 'flex';
-        elseHeader.style.justifyContent = 'space-between';
-        elseHeader.style.alignItems = 'center';
-        elseHeader.style.marginBottom = '4px';
-        elseHeader.style.padding = '2px 4px';
+        elseHeader.className = 'else-header';
 
         const elseLabel = document.createElement('span');
+        elseLabel.className = 'else-label';
         elseLabel.textContent = 'иначе';
-        elseLabel.style.color = '#ff6b6b';
-        elseLabel.style.fontWeight = 'bold';
-        elseLabel.style.fontSize = '12px';
 
         const removeElseBtn = document.createElement('button');
+        removeElseBtn.className = 'remove-else-btn';
         removeElseBtn.textContent = '×';
-        removeElseBtn.style.padding = '0 6px';
-        removeElseBtn.style.backgroundColor = 'transparent';
-        removeElseBtn.style.border = 'none';
-        removeElseBtn.style.color = '#ff6b6b';
-        removeElseBtn.style.cursor = 'pointer';
-        removeElseBtn.style.fontSize = '16px';
-        removeElseBtn.style.fontWeight = 'bold';
-
+        
         removeElseBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             this.removeElseContainer();
@@ -455,10 +536,6 @@ class Block {
         const elsePlaceholder = document.createElement('div');
         elsePlaceholder.className = 'else-placeholder';
         elsePlaceholder.textContent = '⟳ Перетащите блоки сюда';
-        elsePlaceholder.style.padding = '8px';
-        elsePlaceholder.style.fontSize = '12px';
-        elsePlaceholder.style.color = 'rgba(255, 107, 107, 0.5)';
-        elsePlaceholder.style.textAlign = 'center';
         elseBlocksContainer.appendChild(elsePlaceholder);
 
         this.element.appendChild(elseBlocksContainer);
@@ -516,19 +593,18 @@ class Block {
                 block.delete();
             }
         }
-
-        const elseContainer = this.element.querySelector('.else-container');
+        
+        const elseContainer = this.element.querySelector('.else-blocks-container');
         if (elseContainer) {
             elseContainer.remove();
         }
 
         this.elseBlocks = null;
-        this.elseContainer = null;
         this.elseBlocksContainer = null;
-
-        const elseButton = this.element.querySelector('button');
+        
+        const elseButton = this.element.querySelector('.else-button');
         if (elseButton) {
-            elseButton.style.display = 'block';
+            elseButton.classList.remove('hidden');
         }
 
         let rootBlock = this;
@@ -589,7 +665,14 @@ class Block {
         block.element.style.margin = '4px 0';
         block.element.style.width = 'calc(100% - 8px)';
         block.element.style.transform = 'none';
-
+        
+        if (block.connectionPoints.top) {
+            block.connectionPoints.top.element.classList.add('hidden');
+        }
+        if (block.connectionPoints.bottom) {
+            block.connectionPoints.bottom.element.classList.add('hidden');
+        }
+        
         const placeholder = container.querySelector('.else-placeholder');
         if (placeholder) {
             placeholder.remove();
@@ -620,7 +703,14 @@ class Block {
         if (index !== -1) {
             this.elseBlocks.splice(index, 1);
         }
-
+        
+        if (block.connectionPoints.top) {
+            block.connectionPoints.top.element.classList.remove('hidden');
+        }
+        if (block.connectionPoints.bottom) {
+            block.connectionPoints.bottom.element.classList.remove('hidden');
+        }
+        
         if (this.elseBlocks.length === 0 && this.elseBlocksContainer) {
             if (!this.elseBlocksContainer.querySelector('.else-placeholder')) {
                 const placeholder = document.createElement('div');
@@ -763,7 +853,14 @@ class Block {
         block.element.style.margin = '4px 0';
         block.element.style.width = 'calc(100% - 8px)';
         block.element.style.transform = 'none';
-
+        
+        if (block.connectionPoints.top) {
+            block.connectionPoints.top.element.classList.add('hidden');
+        }
+        if (block.connectionPoints.bottom) {
+            block.connectionPoints.bottom.element.classList.add('hidden');
+        }
+        
         const placeholder = container.querySelector('.nested-placeholder');
         if (placeholder) {
             placeholder.remove();
@@ -794,7 +891,14 @@ class Block {
         if (index !== -1) {
             this.nestedBlocks.splice(index, 1);
         }
-
+        
+        if (block.connectionPoints.top) {
+            block.connectionPoints.top.element.classList.remove('hidden');
+        }
+        if (block.connectionPoints.bottom) {
+            block.connectionPoints.bottom.element.classList.remove('hidden');
+        }
+        
         if (this.nestedBlocks.length === 0) {
             const container = this.element.querySelector('.nested-container');
             if (container && !container.querySelector('.nested-placeholder')) {
@@ -885,7 +989,6 @@ class Block {
                 e.target.classList.contains('block-delete-btn') ||
                 e.target.classList.contains('nested-container') ||
                 e.target.classList.contains('nested-placeholder') ||
-                e.target.classList.contains('else-container') ||
                 e.target.classList.contains('else-blocks-container') ||
                 e.target.classList.contains('else-placeholder') ||
                 e.target.tagName === 'BUTTON') return;
@@ -934,6 +1037,13 @@ class Block {
                     block.element.style.position = 'absolute';
                     block.element.style.margin = '0';
                     block.element.style.width = '';
+                    
+                    if (block.connectionPoints.top) {
+                        block.connectionPoints.top.element.classList.remove('hidden');
+                    }
+                    if (block.connectionPoints.bottom) {
+                        block.connectionPoints.bottom.element.classList.remove('hidden');
+                    }
                 }
 
                 this.element.style.left = globalX + 'px';
@@ -976,11 +1086,11 @@ class Block {
             document.removeEventListener('mousemove', this.moveBlock);
             document.removeEventListener('mouseup', this.stopBlockMove);
 
-            this.element.style.zIndex = '1000';
-            this.element.style.cursor = 'grabbing';
-            this.element.style.transition = 'none';
-            this.element.style.opacity = '0.9';
-            this.element.style.boxShadow = '0 10px 25px rgba(0, 0, 0, 0.3)';
+            this.element.classList.add('dragging');
+            
+            if (this.isOutsideWorkspace) {
+                this.element.classList.add('outside-workspace');
+            }
 
             document.addEventListener('mousemove', this.moveBlock);
             document.addEventListener('mouseup', this.stopBlockMove, { capture: true });
@@ -1053,14 +1163,10 @@ class Block {
         );
 
         if (isOutside) {
-            this.element.style.opacity = '0.5';
-            this.element.style.filter = 'blur(0.5px)';
-            this.element.style.border = '2px dashed #ff4757';
+            this.element.classList.add('outside-workspace');
             this.isOutsideWorkspace = true;
         } else {
-            this.element.style.opacity = '0.9';
-            this.element.style.filter = 'none';
-            this.element.style.border = '';
+            this.element.classList.remove('outside-workspace');
             this.isOutsideWorkspace = false;
         }
     }
@@ -1070,10 +1176,7 @@ class Block {
 
         e.preventDefault();
 
-        this.element.style.zIndex = '10';
-        this.element.style.cursor = 'grab';
-        this.element.style.transition = '';
-        this.element.style.boxShadow = '';
+        this.element.classList.remove('dragging', 'outside-workspace');
 
         const elementsUnderCursor = document.elementsFromPoint(e.clientX, e.clientY);
         const nestedContainer = elementsUnderCursor.find(el => el.classList.contains('nested-container'));
@@ -1146,7 +1249,6 @@ class Block {
         }
 
         this.removeAllHighlights();
-        this.element.style.opacity = '1';
 
         document.removeEventListener('mousemove', this.moveBlock);
         document.removeEventListener('mouseup', this.stopBlockMove, { capture: true });
@@ -1268,11 +1370,11 @@ class Block {
         this.updateAllAttachedPositions();
 
         if (this.connectionPoints.top) {
-            this.connectionPoints.top.element.style.display = 'none';
+            this.connectionPoints.top.element.classList.add('hidden');
         }
 
         if (parentBlock.connectionPoints.bottom) {
-            parentBlock.connectionPoints.bottom.element.style.display = 'none';
+            parentBlock.connectionPoints.bottom.element.classList.add('hidden');
         }
 
         if (this.onLog) this.onLog(`Блок присоединен к родителю`);
@@ -1286,11 +1388,11 @@ class Block {
             }
 
             if (this.connectionPoints.top) {
-                this.connectionPoints.top.element.style.display = 'block';
+                this.connectionPoints.top.element.classList.remove('hidden');
             }
 
             if (this.parent.connectionPoints.bottom) {
-                this.parent.connectionPoints.bottom.element.style.display = 'block';
+                this.parent.connectionPoints.bottom.element.classList.remove('hidden');
             }
 
             const rect = this.element.getBoundingClientRect();
@@ -1403,7 +1505,7 @@ class Block {
             }
 
             if (this.parent.connectionPoints.bottom && this.parent.allAttached.length === 0) {
-                this.parent.connectionPoints.bottom.element.style.display = 'block';
+                this.parent.connectionPoints.bottom.element.classList.remove('hidden');
             }
         }
 
