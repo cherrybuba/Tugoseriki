@@ -115,6 +115,8 @@ header {
 .math-block { border-left: 4px solid #4ec9b0; }
 .print-block { border-left: 4px solid #ce9178; }
 .array-block { border-left: 4px solid #4ec9b0; }
+.function-block { border-left: 4px solid #78ce8c; }
+.call-block { border-left: 4px solid #78ce8c; }
 
 .workspace {
     flex: 1;
@@ -170,6 +172,60 @@ header {
     font-size: 14px;
     transition: opacity 0.2s, box-shadow 0.2s, border-color 0.2s;
     border-left: 4px;
+}
+
+.canvas-block[data-type="variable"] { 
+    border-left-color: #9cdcfe !important; 
+    border-left-width: 4px !important;
+    border-left-style: solid !important;
+}
+
+.canvas-block[data-type="assignment"] { 
+    border-left-color: #dcdcaa !important; 
+    border-left-width: 4px !important;
+    border-left-style: solid !important;
+}
+
+.canvas-block[data-type="if"] { 
+    border-left-color: #c586c0 !important; 
+    border-left-width: 4px !important;
+    border-left-style: solid !important;
+}
+
+.canvas-block[data-type="while"] { 
+    border-left-color: #c586c0 !important; 
+    border-left-width: 4px !important;
+    border-left-style: solid !important;
+}
+
+.canvas-block[data-type="print"] { 
+    border-left-color: #ce9178 !important; 
+    border-left-width: 4px !important;
+    border-left-style: solid !important;
+}
+
+.canvas-block[data-type="array"] { 
+    border-left-color: #4ec9b0 !important; 
+    border-left-width: 4px !important;
+    border-left-style: solid !important;
+}
+
+.canvas-block[data-type="assignment array"] { 
+    border-left-color: #dcdcaa !important; 
+    border-left-width: 4px !important;
+    border-left-style: solid !important;
+}
+
+.canvas-block[data-type="function"] { 
+    border-left-color: #7dc37c !important; 
+    border-left-width: 4px !important;
+    border-left-style: solid !important;
+}
+
+.canvas-block[data-type="call"] { 
+    border-left-color: #7dc37c !important; 
+    border-left-width: 4px !important;
+    border-left-style: solid !important;
 }
 
 .canvas-block:active {
@@ -576,8 +632,10 @@ header {
 }
 
 .array-index-input {
-    width: 50px;
+    width: 40px !important;
     text-align: center;
+    padding: 4px 2px !important;
+    font-size: 11px !important;
 }
 
 .array-value-input {

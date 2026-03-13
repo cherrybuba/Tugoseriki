@@ -91,7 +91,7 @@ class Block {
             this.addPrint();
         } else if (blockType === 'array'){
             this.addArrayInput();
-        } else if (blockType === 'assignmentArray'){
+        } else if (blockType === 'assignment array'){
             this.addArrayAssignmentInput();
         }
 
@@ -150,11 +150,10 @@ class Block {
         nameInput.className = 'array-name-input';
 
         const sizeInput = document.createElement('input');
-        sizeInput.type = 'number';
+        sizeInput.type = 'text';
         sizeInput.placeholder = 'Размер';
         sizeInput.dataset.field = 'arraySize';
         sizeInput.className = 'array-size-input';
-        sizeInput.min = '1';
 
         inputsGroup.appendChild(nameInput);
         inputsGroup.appendChild(sizeInput);
@@ -192,9 +191,6 @@ class Block {
         indexInput.placeholder = 'i';
         indexInput.dataset.field = 'arrayIndex';
         indexInput.className = 'array-index-input';
-        indexInput.inputMode = 'numeric';
-        indexInput.pattern = '[0-9]*';
-        indexInput.disabled = true;
 
         const valueInput = document.createElement('input');
         valueInput.type = 'text';
@@ -247,11 +243,10 @@ class Block {
             previousBlocks.forEach(block => {
                 if (block.element.dataset.type === 'array') {
                     const arrayName = block.element.dataset.arrayName || '';
-                    const arraySize = block.element.dataset.arraySize || '0';
                     if (arrayName && arrayName.trim() !== '') {
                         const option = document.createElement('option');
                         option.value = arrayName;
-                        option.textContent = `${arrayName} [${arraySize}]`;
+                        option.textContent = `${arrayName}`;
                         select.appendChild(option);
                     }
                 }
@@ -272,23 +267,13 @@ class Block {
             const selectedArray = select.value;
             if (selectedArray) {
                 this.element.dataset.selectedArray = selectedArray;
-                indexInput.disabled = false;
                 valueInput.disabled = false;
             } else {
-                indexInput.disabled = true;
                 valueInput.disabled = true;
-                indexInput.value = '';
                 valueInput.value = '';
                 this.element.removeAttribute('data-selected-array');
                 this.element.removeAttribute('data-array-index');
                 this.element.removeAttribute('data-array-value');
-            }
-        });
-
-        indexInput.addEventListener('input', (e) => {
-            if (this.element.dataset.selectedArray) {
-                e.target.value = e.target.value.replace(/[^0-9]/g, '');
-                this.element.dataset.arrayIndex = e.target.value;
             }
         });
 
