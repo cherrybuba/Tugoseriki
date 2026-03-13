@@ -47,9 +47,12 @@ class Block {
         
         this.isMoving = false;
         this.offset = { x: 0, y: 0 };
+        this.startMousePosition = { x: 0, y: 0 };
+        this.startElementPosition = { x: 0, y: 0 };
         
         this.allAttached = [];
         this.parent = null;
+        this.nestedParent = null;
         
         this.connectionPoints = {
             top: null,
@@ -62,10 +65,13 @@ class Block {
         this.stopBlockMove = this.stopBlockMove.bind(this);
         this.checkConnection = this.checkConnection.bind(this);
         this.updateScale = this.updateScale.bind(this);
+        this.handleDragStart = this.handleDragStart.bind(this);
+        this.handleDragEnd = this.handleDragEnd.bind(this);
         
         this.element.classList.add('canvas-block');
         this.element.style.position = 'absolute';
         this.element.style.opacity = '1';
+        this.element.style.willChange = 'left, top';
         this.element.removeAttribute('id');
 
         const blockId = 'block_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
@@ -76,12 +82,19 @@ class Block {
             this.addVariableNameInput();
         } else if (blockType === 'assignment') {
             this.addVariableValueInput();
-        } else if (blockType === 'if'){
-            this.addIfConstruction();
-        } else if (blockType === 'while'){
-            this.addWhileConstruction();
+        } else if (blockType === 'if' || blockType === 'while'){
+            this.addConditionInput();
+            this.addNestedContainer();
+            this.nestedBlocks = [];
+            if (blockType === 'if') {
+                this.addElseButton();
+            }
         } else if (blockType === 'print'){
             this.addPrint();
+        } else if (blockType === 'array'){
+            this.addArrayInput();
+        } else if (blockType === 'assignmentArray'){
+            this.addArrayAssignmentInput();
         }
 
         this.createConnectionPoints();
@@ -127,6 +140,147 @@ class Block {
         this.element.style.top = scaledY + 'px';
         this.element.style.visibility = 'visible';
     }
+
+    addArrayInput() {
+        const inputsGroup = document.createElement('div');
+        inputsGroup.className = 'block-inputs-group';
+
+        const nameInput = document.createElement('input');
+        nameInput.type = 'text';
+        nameInput.placeholder = 'Имя массива';
+        nameInput.dataset.field = 'arrayName';
+        nameInput.className = 'array-name-input';
+
+        const sizeInput = document.createElement('input');
+        sizeInput.type = 'number';
+        sizeInput.placeholder = 'Размер';
+        sizeInput.dataset.field = 'arraySize';
+        sizeInput.className = 'array-size-input';
+        sizeInput.min = '1';
+        sizeInput.value = '';
+
+        inputsGroup.appendChild(nameInput);
+        inputsGroup.appendChild(sizeInput);
+        this.element.appendChild(inputsGroup);
+
+        nameInput.addEventListener('input', () => {
+            this.element.dataset.arrayName = nameInput.value.trim();
+        });
+
+        sizeInput.addEventListener('input', () => {
+            this.element.dataset.arraySize = sizeInput.value;
+        });
+
+        nameInput.addEventListener('mousedown', (e) => e.stopPropagation());
+        nameInput.addEventListener('click', (e) => e.stopPropagation());
+        sizeInput.addEventListener('mousedown', (e) => e.stopPropagation());
+        sizeInput.addEventListener('click', (e) => e.stopPropagation());
+    }
+
+    addArrayAssignmentInput() {
+    const inputsGroup = document.createElement('div');
+    inputsGroup.className = 'block-inputs-group';
+
+    const select = document.createElement('select');
+    select.className = 'array-selector';
+    select.dataset.field = 'arraySelector';
+
+    const defaultOption = document.createElement('option');
+    defaultOption.value = '';
+    defaultOption.textContent = 'Выберите массив';
+    select.appendChild(defaultOption);
+
+    const indexInput = document.createElement('input');
+    indexInput.type = 'text';
+    indexInput.placeholder = 'i';
+    indexInput.dataset.field = 'arrayIndex';
+    indexInput.className = 'array-index-input';
+    indexInput.inputMode = 'numeric';
+    indexInput.pattern = '[0-9]*';
+    indexInput.disabled = true;
+    indexInput.style.width = '50px';
+    indexInput.style.textAlign = 'center';
+
+    const valueInput = document.createElement('input');
+    valueInput.type = 'text';
+    valueInput.placeholder = 'Значение';
+    valueInput.dataset.field = 'arrayValue';
+    valueInput.className = 'array-value-input';
+    valueInput.disabled = true;
+    valueInput.style.flex = '1';
+
+    const rowContainer = document.createElement('div');
+    rowContainer.style.display = 'flex';
+    rowContainer.style.gap = '4px';
+    rowContainer.style.alignItems = 'center';
+
+    rowContainer.appendChild(indexInput);
+    rowContainer.appendChild(valueInput);
+
+    inputsGroup.appendChild(select);
+    inputsGroup.appendChild(rowContainer);
+    this.element.appendChild(inputsGroup);
+
+    const populateArraySelect = (select, defaultOption) => {
+        const currentValue = select.value;
+        select.innerHTML = '';
+        select.appendChild(defaultOption);
+
+        const arrayBlocks = this.blocksContainer.querySelectorAll('.canvas-block[data-type="array"]');
+        arrayBlocks.forEach(arrayBlock => {
+            const arrayName = arrayBlock.dataset.arrayName || '';
+            const arraySize = arrayBlock.dataset.arraySize || '0';
+            if (arrayName && arrayName.trim() !== '') {
+                const option = document.createElement('option');
+                option.value = arrayName;
+                option.textContent = `${arrayName} [${arraySize}]`;
+                select.appendChild(option);
+            }
+        });
+
+        if (currentValue) select.value = currentValue;
+    };
+
+    select.addEventListener('click', (e) => {
+        e.stopPropagation();
+        populateArraySelect(select, defaultOption);
+    });
+
+    select.addEventListener('change', () => {
+        const selectedArray = select.value;
+        if (selectedArray) {
+            this.element.dataset.selectedArray = selectedArray;
+            indexInput.disabled = false;
+            valueInput.disabled = false;
+        } else {
+            indexInput.disabled = true;
+            valueInput.disabled = true;
+            indexInput.value = '';
+            valueInput.value = '';
+            this.element.removeAttribute('data-selected-array');
+            this.element.removeAttribute('data-array-index');
+            this.element.removeAttribute('data-array-value');
+        }
+    });
+
+    indexInput.addEventListener('input', (e) => {
+        if (this.element.dataset.selectedArray) {
+            e.target.value = e.target.value.replace(/[^0-9]/g, '');
+            this.element.dataset.arrayIndex = e.target.value;
+        }
+    });
+
+    valueInput.addEventListener('input', () => {
+        if (this.element.dataset.selectedArray) {
+            this.element.dataset.arrayValue = valueInput.value;
+        }
+    });
+
+    [select, indexInput, valueInput].forEach(el => {
+        el.addEventListener('mousedown', (e) => e.stopPropagation());
+        el.addEventListener('click', (e) => e.stopPropagation());
+    });
+}
 
     addVariableNameInput() {
         const inputsGroup = document.createElement('div');
@@ -225,40 +379,471 @@ class Block {
         valueInput.addEventListener('click', (e) => e.stopPropagation());
     }
 
-    addIfConstruction(){
+    addConditionInput() {
         const inputsGroup = document.createElement('div');
         inputsGroup.className = 'block-inputs-group';
 
-        const nameInput = document.createElement('input');
-        nameInput.type = 'text';
-        nameInput.placeholder = 'Условие';
-        nameInput.dataset.field = 'if';
-        nameInput.className = 'if-input';
+        const conditionInput = document.createElement('input');
+        conditionInput.type = 'text';
+        conditionInput.placeholder = 'Условие (например: x > 5)';
+        conditionInput.dataset.field = 'condition';
+        conditionInput.className = 'condition-input';
 
-        inputsGroup.appendChild(nameInput);
+        inputsGroup.appendChild(conditionInput);
         this.element.appendChild(inputsGroup);
 
-        nameInput.addEventListener('input', () => {
-            this.element.dataset.condition = nameInput.value.trim();
+        conditionInput.addEventListener('input', () => {
+            this.element.dataset.condition = conditionInput.value.trim();
+        });
+
+        conditionInput.addEventListener('mousedown', (e) => e.stopPropagation());
+        conditionInput.addEventListener('click', (e) => e.stopPropagation());
+    }
+
+    addElseButton() {
+        const buttonContainer = document.createElement('div');
+        buttonContainer.style.margin = '8px 0';
+        buttonContainer.style.textAlign = 'center';
+        
+        const elseButton = document.createElement('button');
+        elseButton.textContent = '+ else';
+        elseButton.style.padding = '4px 12px';
+        elseButton.style.backgroundColor = 'rgba(255, 107, 107, 0.2)';
+        elseButton.style.border = '1px solid #ff6b6b';
+        elseButton.style.borderRadius = '4px';
+        elseButton.style.color = '#ff6b6b';
+        elseButton.style.cursor = 'pointer';
+        elseButton.style.fontSize = '12px';
+        elseButton.style.fontWeight = 'bold';
+        
+        elseButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.addElseContainer();
+            elseButton.style.display = 'none';
+        });
+        
+        buttonContainer.appendChild(elseButton);
+        this.element.appendChild(buttonContainer);
+    }
+
+    addElseContainer() {
+        const elseContainer = document.createElement('div');
+        elseContainer.className = 'else-container';
+        elseContainer.dataset.parentId = this.element.dataset.blockId;
+
+        const elseHeader = document.createElement('div');
+        elseHeader.style.display = 'flex';
+        elseHeader.style.justifyContent = 'space-between';
+        elseHeader.style.alignItems = 'center';
+        elseHeader.style.marginBottom = '4px';
+        elseHeader.style.padding = '2px 4px';
+
+        const elseLabel = document.createElement('span');
+        elseLabel.textContent = 'иначе';
+        elseLabel.style.color = '#ff6b6b';
+        elseLabel.style.fontWeight = 'bold';
+        elseLabel.style.fontSize = '12px';
+
+        const removeElseBtn = document.createElement('button');
+        removeElseBtn.textContent = '×';
+        removeElseBtn.style.padding = '0 6px';
+        removeElseBtn.style.backgroundColor = 'transparent';
+        removeElseBtn.style.border = 'none';
+        removeElseBtn.style.color = '#ff6b6b';
+        removeElseBtn.style.cursor = 'pointer';
+        removeElseBtn.style.fontSize = '16px';
+        removeElseBtn.style.fontWeight = 'bold';
+        
+        removeElseBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.removeElseContainer();
+        });
+
+        elseHeader.appendChild(elseLabel);
+        elseHeader.appendChild(removeElseBtn);
+        elseContainer.appendChild(elseHeader);
+
+        const elseBlocksContainer = document.createElement('div');
+        elseBlocksContainer.className = 'else-blocks-container';
+
+        const elsePlaceholder = document.createElement('div');
+        elsePlaceholder.className = 'else-placeholder';
+        elsePlaceholder.textContent = '⟳ Перетащите блоки сюда';
+        elseBlocksContainer.appendChild(elsePlaceholder);
+
+        elseContainer.appendChild(elseBlocksContainer);
+        this.element.appendChild(elseContainer);
+
+        this.elseBlocks = [];
+        this.elseContainer = elseContainer;
+        this.elseBlocksContainer = elseBlocksContainer;
+
+        let rootBlock = this;
+        while (rootBlock.parent) {
+            rootBlock = rootBlock.parent;
+        }
+        rootBlock.updateAllAttachedPositions();
+
+        elseBlocksContainer.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            if (DragDropManager.draggedBlock && DragDropManager.draggedBlock.blockInstance) {
+                const draggedInstance = DragDropManager.draggedBlock.blockInstance;
+                
+                if (draggedInstance !== this && !this.isAncestorOf(draggedInstance)) {
+                    elseBlocksContainer.classList.add('drag-over');
+                }
+            }
+        });
+
+        elseBlocksContainer.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            elseBlocksContainer.classList.remove('drag-over');
+        });
+
+        elseBlocksContainer.addEventListener('drop', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            elseBlocksContainer.classList.remove('drag-over');
+
+            const draggedBlock = DragDropManager.draggedBlock;
+            if (!draggedBlock || !draggedBlock.blockInstance) return;
+
+            if (this.isAncestorOf(draggedBlock.blockInstance)) {
+                if (this.onLog) this.onLog('Нельзя перетащить родительский блок в дочерний');
+                return;
+            }
+
+            this.handleDropInElseContainer(draggedBlock, elseBlocksContainer);
         });
     }
 
-    addWhileConstruction(){
-        const inputsGroup = document.createElement('div');
-        inputsGroup.className = 'block-inputs-group';
+    removeElseContainer() {
+        if (this.elseBlocks && this.elseBlocks.length > 0) {
+            const blocksCopy = [...this.elseBlocks];
+            for (const block of blocksCopy) {
+                block.delete();
+            }
+        }
+        
+        const elseContainer = this.element.querySelector('.else-container');
+        if (elseContainer) {
+            elseContainer.remove();
+        }
+        
+        this.elseBlocks = null;
+        this.elseContainer = null;
+        this.elseBlocksContainer = null;
+        
+        const elseButton = this.element.querySelector('button');
+        if (elseButton) {
+            elseButton.style.display = 'block';
+        }
+        
+        let rootBlock = this;
+        while (rootBlock.parent) {
+            rootBlock = rootBlock.parent;
+        }
+        rootBlock.updateAllAttachedPositions();
+    }
 
-        const nameInput = document.createElement('input');
-        nameInput.type = 'text';
-        nameInput.placeholder = 'Условие';
-        nameInput.dataset.field = 'while';
-        nameInput.className = 'while-input';
+    handleDropInElseContainer(draggedElement, container) {
+        const block = draggedElement.blockInstance;
+        
+        if (block.element.parentElement === container) return;
+        
+        const oldNestedParent = block.nestedParent;
+        const oldParentBlock = block.parent;
+        
+        const blocksToMove = this.getAllBlocksInChain(block);
+        
+        for (const blockToMove of blocksToMove) {
+            blockToMove.detachFromAll();
+        }
+        
+        let success = true;
+        for (const blockToMove of blocksToMove) {
+            if (!this.addBlockToElse(blockToMove, container)) {
+                success = false;
+                break;
+            }
+        }
+        
+        if (success) {
+            if (this.onLog) this.onLog('Блоки перемещены в else');
+            
+            if (oldNestedParent) {
+                let rootBlock = oldNestedParent;
+                while (rootBlock.parent) {
+                    rootBlock = rootBlock.parent;
+                }
+                rootBlock.updateAllAttachedPositions();
+            }
+            if (oldParentBlock) {
+                let rootBlock = oldParentBlock;
+                while (rootBlock.parent) {
+                    rootBlock = rootBlock.parent;
+                }
+                rootBlock.updateAllAttachedPositions();
+            }
+        }
+    }
 
-        inputsGroup.appendChild(nameInput);
-        this.element.appendChild(inputsGroup);
+    addBlockToElse(block, container) {
+        if (!block || !container) return false;
+        
+        block.element.style.position = 'relative';
+        block.element.style.left = '';
+        block.element.style.top = '';
+        block.element.style.margin = '4px 0';
+        block.element.style.width = 'calc(100% - 8px)';
+        block.element.style.transform = 'none';
+        
+        const placeholder = container.querySelector('.else-placeholder');
+        if (placeholder) {
+            placeholder.remove();
+        }
+        
+        container.appendChild(block.element);
+        
+        block.nestedParent = this;
+        
+        if (!this.elseBlocks) {
+            this.elseBlocks = [];
+        }
+        this.elseBlocks.push(block);
+        
+        let rootBlock = this;
+        while (rootBlock.parent) {
+            rootBlock = rootBlock.parent;
+        }
+        rootBlock.updateAllAttachedPositions();
+        
+        return true;
+    }
 
-        nameInput.addEventListener('input', () => {
-            this.element.dataset.condition = nameInput.value.trim();
+    removeBlockFromElse(block) {
+        if (!block || !this.elseBlocks) return false;
+        
+        const index = this.elseBlocks.indexOf(block);
+        if (index !== -1) {
+            this.elseBlocks.splice(index, 1);
+        }
+        
+        if (this.elseBlocks.length === 0 && this.elseBlocksContainer) {
+            if (!this.elseBlocksContainer.querySelector('.else-placeholder')) {
+                const placeholder = document.createElement('div');
+                placeholder.className = 'else-placeholder';
+                placeholder.textContent = '⟳ Перетащите блоки сюда';
+                this.elseBlocksContainer.appendChild(placeholder);
+            }
+        }
+        
+        block.nestedParent = null;
+        
+        let rootBlock = this;
+        while (rootBlock.parent) {
+            rootBlock = rootBlock.parent;
+        }
+        rootBlock.updateAllAttachedPositions();
+        
+        return true;
+    }
+
+    addNestedContainer() {
+        const container = document.createElement('div');
+        container.className = 'nested-container';
+        container.dataset.parentId = this.element.dataset.blockId;
+
+        const placeholder = document.createElement('div');
+        placeholder.className = 'nested-placeholder';
+        placeholder.textContent = '⟳ Перетащите блоки сюда';
+        container.appendChild(placeholder);
+        
+        this.element.appendChild(container);
+
+        container.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            if (DragDropManager.draggedBlock && DragDropManager.draggedBlock.blockInstance) {
+                const draggedInstance = DragDropManager.draggedBlock.blockInstance;
+                
+                if (draggedInstance !== this && !this.isAncestorOf(draggedInstance)) {
+                    container.classList.add('drag-over');
+                }
+            }
         });
+
+        container.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            container.classList.remove('drag-over');
+        });
+
+        container.addEventListener('drop', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            container.classList.remove('drag-over');
+
+            const draggedBlock = DragDropManager.draggedBlock;
+            if (!draggedBlock || !draggedBlock.blockInstance) return;
+
+            if (this.isAncestorOf(draggedBlock.blockInstance)) {
+                if (this.onLog) this.onLog('Нельзя перетащить родительский блок в дочерний');
+                return;
+            }
+
+            this.handleDropInContainer(e, draggedBlock, container);
+        });
+    }
+
+    handleDropInContainer(e, draggedElement, container) {
+        const block = draggedElement.blockInstance;
+        
+        if (block.element.parentElement === container) return;
+        
+        const oldNestedParent = block.nestedParent;
+        const oldParentBlock = block.parent;
+        
+        const blocksToMove = this.getAllBlocksInChain(block);
+        
+        for (const blockToMove of blocksToMove) {
+            blockToMove.detachFromAll();
+        }
+        
+        let success = true;
+        for (const blockToMove of blocksToMove) {
+            if (!this.addBlockToNested(blockToMove, container)) {
+                success = false;
+                break;
+            }
+        }
+        
+        if (success) {
+            if (this.onLog) this.onLog('Блоки перемещены в контейнер');
+            
+            if (oldNestedParent) {
+                let rootBlock = oldNestedParent;
+                while (rootBlock.parent) {
+                    rootBlock = rootBlock.parent;
+                }
+                rootBlock.updateAllAttachedPositions();
+            }
+            if (oldParentBlock) {
+                let rootBlock = oldParentBlock;
+                while (rootBlock.parent) {
+                    rootBlock = rootBlock.parent;
+                }
+                rootBlock.updateAllAttachedPositions();
+            }
+        } else {
+            for (const blockToMove of blocksToMove) {
+                if (oldNestedParent) {
+                    oldNestedParent.addBlockToNested(blockToMove, oldNestedParent.element.querySelector('.nested-container'));
+                } else {
+                    this.blocksContainer.appendChild(blockToMove.element);
+                }
+            }
+        }
+    }
+
+    getAllBlocksInChain(block) {
+        const blocks = [block];
+        
+        const addAttachedBlocks = (b) => {
+            for (const attached of b.allAttached) {
+                blocks.push(attached);
+                addAttachedBlocks(attached);
+            }
+        };
+        
+        addAttachedBlocks(block);
+        return blocks;
+    }
+
+    addBlockToNested(block, container) {
+        if (!block || !container) return false;
+        
+        block.element.style.position = 'relative';
+        block.element.style.left = '';
+        block.element.style.top = '';
+        block.element.style.margin = '4px 0';
+        block.element.style.width = 'calc(100% - 8px)';
+        block.element.style.transform = 'none';
+        
+        const placeholder = container.querySelector('.nested-placeholder');
+        if (placeholder) {
+            placeholder.remove();
+        }
+        
+        container.appendChild(block.element);
+        
+        block.nestedParent = this;
+        
+        if (!this.nestedBlocks) {
+            this.nestedBlocks = [];
+        }
+        this.nestedBlocks.push(block);
+        
+        let rootBlock = this;
+        while (rootBlock.parent) {
+            rootBlock = rootBlock.parent;
+        }
+        rootBlock.updateAllAttachedPositions();
+        
+        return true;
+    }
+
+    removeBlockFromNested(block) {
+        if (!block || !this.nestedBlocks) return false;
+        
+        const index = this.nestedBlocks.indexOf(block);
+        if (index !== -1) {
+            this.nestedBlocks.splice(index, 1);
+        }
+        
+        if (this.nestedBlocks.length === 0) {
+            const container = this.element.querySelector('.nested-container');
+            if (container && !container.querySelector('.nested-placeholder')) {
+                const placeholder = document.createElement('div');
+                placeholder.className = 'nested-placeholder';
+                placeholder.textContent = '⟳ Перетащите блоки сюда';
+                container.appendChild(placeholder);
+            }
+        }
+        
+        block.nestedParent = null;
+        
+        return true;
+    }
+
+    createNestedBlock(sourceElement, container) {
+        const newBlockElement = sourceElement.cloneNode(true);
+        
+        const nestedBlock = new Block(
+            newBlockElement,
+            container,
+            this.workspace,
+            this.onLog,
+            this.onLogAlg
+        );
+
+        this.addBlockToNested(nestedBlock, container);
+
+        let rootBlock = this;
+        while (rootBlock.parent) {
+            rootBlock = rootBlock.parent;
+        }
+        rootBlock.updateAllAttachedPositions();
+
+        if (this.onLog) this.onLog('Блок добавлен в контейнер');
+        
+        return nestedBlock;
     }
 
     addPrint(){
@@ -279,16 +864,123 @@ class Block {
         });
     }
 
+    detachFromAll() {
+        if (this.parent) {
+            this.detachFromParent();
+        }
+        
+        if (this.nestedParent) {
+            if (this.nestedParent.nestedBlocks && this.nestedParent.nestedBlocks.includes(this)) {
+                this.nestedParent.removeBlockFromNested(this);
+            } else if (this.nestedParent.elseBlocks && this.nestedParent.elseBlocks.includes(this)) {
+                this.nestedParent.removeBlockFromElse(this);
+            }
+        }
+        
+        if (this.allAttached.length > 0) {
+            const attachedCopy = [...this.allAttached];
+            for (const attached of attachedCopy) {
+                attached.detachFromParent();
+            }
+        }
+    }
+
     addMovement() {
+        this.element.setAttribute('draggable', 'true');
+        
+        this.element.addEventListener('dragstart', this.handleDragStart);
+        this.element.addEventListener('dragend', this.handleDragEnd);
+        
         this.element.addEventListener('mousedown', (e) => {
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || 
                 e.target.classList.contains('connection-point') ||
-                e.target.classList.contains('block-delete-btn')) return;
+                e.target.classList.contains('block-delete-btn') ||
+                e.target.classList.contains('nested-container') ||
+                e.target.classList.contains('nested-placeholder') ||
+                e.target.classList.contains('else-container') ||
+                e.target.classList.contains('else-blocks-container') ||
+                e.target.classList.contains('else-placeholder') ||
+                e.target.tagName === 'BUTTON') return;
 
             if (this.isMoving) return;
 
+            e.preventDefault();
+            e.stopPropagation();
+
+            const oldNestedParent = this.nestedParent;
+            const oldParent = this.parent;
+
+            const workspaceRect = this.workspace.getBoundingClientRect();
+            this.startMousePosition = {
+                x: (e.clientX - workspaceRect.left) / this.currentScale,
+                y: (e.clientY - workspaceRect.top) / this.currentScale
+            };
+            
+            const currentLeft = parseFloat(this.element.style.left) || 0;
+            const currentTop = parseFloat(this.element.style.top) || 0;
+            
+            this.startElementPosition = {
+                x: currentLeft,
+                y: currentTop
+            };
+
+            if (this.nestedParent) {
+                const rect = this.element.getBoundingClientRect();
+                const globalX = (rect.left - workspaceRect.left) / this.currentScale;
+                const globalY = (rect.top - workspaceRect.top) / this.currentScale;
+                
+                const blocksToMove = this.getAllBlocksInChain(this);
+                
+                for (const block of blocksToMove) {
+                    if (block.nestedParent) {
+                        if (block.nestedParent.nestedBlocks && block.nestedParent.nestedBlocks.includes(block)) {
+                            block.nestedParent.removeBlockFromNested(block);
+                        } else if (block.nestedParent.elseBlocks && block.nestedParent.elseBlocks.includes(block)) {
+                            block.nestedParent.removeBlockFromElse(block);
+                        }
+                    }
+                }
+                
+                for (const block of blocksToMove) {
+                    this.blocksContainer.appendChild(block.element);
+                    block.element.style.position = 'absolute';
+                    block.element.style.margin = '0';
+                    block.element.style.width = '';
+                }
+                
+                this.element.style.left = globalX + 'px';
+                this.element.style.top = globalY + 'px';
+                
+                this.startElementPosition = {
+                    x: globalX,
+                    y: globalY
+                };
+                
+                if (oldNestedParent) {
+                    let rootBlock = oldNestedParent;
+                    while (rootBlock.parent) {
+                        rootBlock = rootBlock.parent;
+                    }
+                    rootBlock.updateAllAttachedPositions();
+                }
+            }
+
             if (this.parent) {
-                this.detachFromParent();
+                const blocksToMove = this.getAllBlocksInChain(this);
+                
+                for (const block of blocksToMove) {
+                    if (block.parent) {
+                        block.detachFromParent();
+                    }
+                }
+                
+                if (oldParent) {
+                    let rootBlock = oldParent;
+                    while (rootBlock.parent) {
+                        rootBlock = rootBlock.parent;
+                    }
+                    rootBlock.updateAllAttachedPositions();
+                }
             }
 
             this.isMoving = true;
@@ -296,40 +988,65 @@ class Block {
             document.removeEventListener('mousemove', this.moveBlock);
             document.removeEventListener('mouseup', this.stopBlockMove);
 
-            const rect = this.element.getBoundingClientRect();
-            const workspaceRect = this.workspace.getBoundingClientRect();
-            
-            this.offset.x = (e.clientX - rect.left) / this.currentScale;
-            this.offset.y = (e.clientY - rect.top) / this.currentScale;
-
             this.element.style.zIndex = '1000';
             this.element.style.cursor = 'grabbing';
+            this.element.style.transition = 'none';
+            this.element.style.opacity = '0.9';
+            this.element.style.boxShadow = '0 10px 25px rgba(0, 0, 0, 0.3)';
 
             document.addEventListener('mousemove', this.moveBlock);
             document.addEventListener('mouseup', this.stopBlockMove, { capture: true });
-            
-            e.preventDefault();
         });
+    }
+
+    handleDragStart(e) {
+        const blocksToMove = this.getAllBlocksInChain(this);
+        
+        DragDropManager.draggedBlock = this.element;
+        DragDropManager.draggedBlock.blockInstance = this;
+        DragDropManager.draggedBlocks = blocksToMove;
+        
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', this.element.dataset.blockId);
+        
+        setTimeout(() => {
+            for (const block of blocksToMove) {
+                block.element.style.opacity = '0.5';
+            }
+        }, 0);
+    }
+
+    handleDragEnd(e) {
+        const blocksToMove = DragDropManager.draggedBlocks || [this];
+        
+        for (const block of blocksToMove) {
+            block.element.style.opacity = '1';
+        }
+        
+        DragDropManager.draggedBlock = null;
+        DragDropManager.draggedBlocks = null;
     }
 
     moveBlock(e) {
         if (!this.isMoving || !this.workspace) return;
 
+        e.preventDefault();
+
         this.updateScale();
 
         const workspaceRect = this.workspace.getBoundingClientRect();
         
-        const mouseX = (e.clientX - workspaceRect.left) / this.currentScale;
-        const mouseY = (e.clientY - workspaceRect.top) / this.currentScale;
+        const currentMouseX = (e.clientX - workspaceRect.left) / this.currentScale;
+        const currentMouseY = (e.clientY - workspaceRect.top) / this.currentScale;
         
-        const currentLeft = parseFloat(this.element.style.left) || 0;
-        const currentTop = parseFloat(this.element.style.top) || 0;
+        const deltaX = currentMouseX - this.startMousePosition.x;
+        const deltaY = currentMouseY - this.startMousePosition.y;
         
-        let x = mouseX - this.offset.x;
-        let y = mouseY - this.offset.y;
+        let newX = this.startElementPosition.x + deltaX;
+        let newY = this.startElementPosition.y + deltaY;
 
-        this.element.style.left = x + 'px';
-        this.element.style.top = y + 'px';
+        this.element.style.left = newX + 'px';
+        this.element.style.top = newY + 'px';
 
         this.updateAllAttachedPositions();
 
@@ -340,14 +1057,11 @@ class Block {
         const blockWidth = this.element.offsetWidth;
         const blockHeight = this.element.offsetHeight;
 
-        const blockLeft = parseFloat(this.element.style.left) || 0;
-        const blockTop = parseFloat(this.element.style.top) || 0;
-        
         const isOutside = (
-            blockLeft < -50 || 
-            blockLeft > workspaceWidth - blockWidth + 50 ||
-            blockTop < -50 || 
-            blockTop > workspaceHeight - blockHeight + 50
+            newX < -50 || 
+            newX > workspaceWidth - blockWidth + 50 ||
+            newY < -50 || 
+            newY > workspaceHeight - blockHeight + 50
         );
 
         if (isOutside) {
@@ -358,6 +1072,7 @@ class Block {
         } else {
             this.element.style.opacity = '0.9';
             this.element.style.filter = 'none';
+            this.element.style.border = '';
             this.isOutsideWorkspace = false;
         }
     }
@@ -365,27 +1080,85 @@ class Block {
     stopBlockMove(e) {
         if (!this.isMoving) return;
 
-        if (this.isOutsideWorkspace) {
-            this.delete();
-            this.removeAllHighlights();
-            document.removeEventListener('mousemove', this.moveBlock);
-            document.removeEventListener('mouseup', this.stopBlockMove, { capture: true });
-            this.isMoving = false;
-            return;
+        e.preventDefault();
+
+        this.element.style.zIndex = '10';
+        this.element.style.cursor = 'grab';
+        this.element.style.transition = '';
+        this.element.style.boxShadow = '';
+
+        const elementsUnderCursor = document.elementsFromPoint(e.clientX, e.clientY);
+        const nestedContainer = elementsUnderCursor.find(el => el.classList.contains('nested-container'));
+        const elseContainer = elementsUnderCursor.find(el => el.classList.contains('else-blocks-container'));
+        
+        if (nestedContainer && !this.isOutsideWorkspace) {
+            const parentBlock = nestedContainer.closest('.canvas-block').blockInstance;
+            if (parentBlock && parentBlock !== this && !this.isAncestorOf(parentBlock)) {
+                const blocksToMove = this.getAllBlocksInChain(this);
+                
+                for (const block of blocksToMove) {
+                    parentBlock.addBlockToNested(block, nestedContainer);
+                }
+                
+                this.element.style.left = '';
+                this.element.style.top = '';
+                
+                let rootBlock = this;
+                while (rootBlock.parent) {
+                    rootBlock = rootBlock.parent;
+                }
+                rootBlock.updateAllAttachedPositions();
+                
+                this.removeAllHighlights();
+                document.removeEventListener('mousemove', this.moveBlock);
+                document.removeEventListener('mouseup', this.stopBlockMove, { capture: true });
+                this.isMoving = false;
+                return;
+            }
+        }
+        
+        if (elseContainer && !this.isOutsideWorkspace) {
+            const parentBlock = elseContainer.closest('.canvas-block').blockInstance;
+            if (parentBlock && parentBlock !== this && !this.isAncestorOf(parentBlock)) {
+                const blocksToMove = this.getAllBlocksInChain(this);
+                
+                for (const block of blocksToMove) {
+                    parentBlock.addBlockToElse(block, elseContainer);
+                }
+                
+                this.element.style.left = '';
+                this.element.style.top = '';
+                
+                let rootBlock = this;
+                while (rootBlock.parent) {
+                    rootBlock = rootBlock.parent;
+                }
+                rootBlock.updateAllAttachedPositions();
+                
+                this.removeAllHighlights();
+                document.removeEventListener('mousemove', this.moveBlock);
+                document.removeEventListener('mouseup', this.stopBlockMove, { capture: true });
+                this.isMoving = false;
+                return;
+            }
         }
 
-        const deleted = this.checkDeletion();
-        
-        if (!deleted) {
+        if (this.isOutsideWorkspace) {
+            this.delete();
+        } else {
             const connected = this.tryConnectToParent();
+            
+            if (!connected) {
+                let rootBlock = this;
+                while (rootBlock.parent) {
+                    rootBlock = rootBlock.parent;
+                }
+                rootBlock.updateAllAttachedPositions();
+            }
         }
 
         this.removeAllHighlights();
-
-        this.element.style.zIndex = '10';
         this.element.style.opacity = '1';
-        this.element.style.filter = 'none';
-        this.element.style.cursor = 'grab';
 
         document.removeEventListener('mousemove', this.moveBlock);
         document.removeEventListener('mouseup', this.stopBlockMove, { capture: true });
@@ -395,6 +1168,8 @@ class Block {
     }
 
     checkConnection() {
+        if (this.nestedParent) return;
+
         const potentialParents = Array.from(this.blocksContainer.children)
             .map(el => el.blockInstance)
             .filter(block => {
@@ -402,6 +1177,7 @@ class Block {
                        block !== this && 
                        block !== this.parent &&
                        !this.isDescendantOf(block) &&
+                       !block.nestedParent &&
                        block.connectionPoints && 
                        block.connectionPoints.bottom;
             });
@@ -441,6 +1217,8 @@ class Block {
     }
 
     tryConnectToParent() {
+        if (this.nestedParent) return false;
+
         const potentialParents = Array.from(this.blocksContainer.children)
             .map(el => el.blockInstance)
             .filter(block => {
@@ -448,6 +1226,7 @@ class Block {
                        block !== this && 
                        block !== this.parent &&
                        !this.isDescendantOf(block) &&
+                       !block.nestedParent &&
                        block.connectionPoints && 
                        block.connectionPoints.bottom;
             });
@@ -554,9 +1333,12 @@ class Block {
         for (const attached of sortedAttached) {
             attached.element.style.left = this.element.style.left;
             attached.element.style.top = currentY + 'px';
-            currentY += attached.element.offsetHeight;
             
-            attached.updateAllAttachedPositions();
+            if (attached.allAttached.length > 0) {
+                attached.updateAllAttachedPositions();
+            }
+            
+            currentY += attached.element.offsetHeight;
         }
     }
 
@@ -569,6 +1351,31 @@ class Block {
         return false;
     }
 
+    isAncestorOf(block) {
+        if (!block) return false;
+        
+        if (this.nestedBlocks) {
+            for (const nested of this.nestedBlocks) {
+                if (nested === block) return true;
+                if (nested.isAncestorOf(block)) return true;
+            }
+        }
+        
+        if (this.elseBlocks) {
+            for (const elseBlock of this.elseBlocks) {
+                if (elseBlock === block) return true;
+                if (elseBlock.isAncestorOf(block)) return true;
+            }
+        }
+        
+        for (const attached of this.allAttached) {
+            if (attached === block) return true;
+            if (attached.isAncestorOf(block)) return true;
+        }
+        
+        return false;
+    }
+
     removeAllHighlights() {
         this.blocksContainer.querySelectorAll('.connection-highlight').forEach(el => {
             el.classList.remove('connection-highlight');
@@ -576,6 +1383,25 @@ class Block {
     }
 
     delete() {
+        const parentBlock = this.parent;
+        const nestedParentBlock = this.nestedParent;
+        
+        if (this.nestedBlocks) {
+            const nestedCopy = [...this.nestedBlocks];
+            for (const nestedBlock of nestedCopy) {
+                nestedBlock.delete();
+            }
+            this.nestedBlocks = [];
+        }
+        
+        if (this.elseBlocks) {
+            const elseCopy = [...this.elseBlocks];
+            for (const elseBlock of elseCopy) {
+                elseBlock.delete();
+            }
+            this.elseBlocks = [];
+        }
+
         const attachedCopy = [...this.allAttached];
         
         for (const attached of attachedCopy) {
@@ -593,7 +1419,29 @@ class Block {
             }
         }
         
+        if (this.nestedParent) {
+            if (this.nestedParent.nestedBlocks && this.nestedParent.nestedBlocks.includes(this)) {
+                this.nestedParent.removeBlockFromNested(this);
+            } else if (this.nestedParent.elseBlocks && this.nestedParent.elseBlocks.includes(this)) {
+                this.nestedParent.removeBlockFromElse(this);
+            }
+        }
+        
         this.element.remove();
+        
+        if (parentBlock) {
+            let rootBlock = parentBlock;
+            while (rootBlock.parent) {
+                rootBlock = rootBlock.parent;
+            }
+            rootBlock.updateAllAttachedPositions();
+        } else if (nestedParentBlock) {
+            let rootBlock = nestedParentBlock;
+            while (rootBlock.parent) {
+                rootBlock = rootBlock.parent;
+            }
+            rootBlock.updateAllAttachedPositions();
+        }
         
         if (this.onLog) this.onLog('Блок удален');
     }
@@ -621,17 +1469,29 @@ class Block {
         }
         return false;
     }
+
+    getNestedBlocks() {
+        return this.nestedBlocks || [];
+    }
+    
+    getElseBlocks() {
+        return this.elseBlocks || [];
+    }
 }
 
 class DragDropManager {
+    static draggedBlock = null;
+    static draggedBlocks = null;
+
     constructor(workspace, blocksContainer, onLog, onLogAlg) {
         this.workspace = workspace;
         this.blocksContainer = blocksContainer;
         this.onLog = onLog;
         this.onLogAlg = onLogAlg;
         
-        this.draggedBlock = null;
         this.currentScale = 1;
+        this.lastHighlightedContainer = null;
+        this.lastHighlightedElseContainer = null;
 
         document.querySelectorAll('.draggable-item').forEach(block => {
             block.addEventListener('dragstart', this.dragStart);
@@ -645,6 +1505,8 @@ class DragDropManager {
             this.workspace.addEventListener('dragleave', (e) => e.preventDefault());
         }
 
+        document.addEventListener('dragover', this.globalDragOver.bind(this));
+        
         this.setupScaleListener();
     }
 
@@ -656,18 +1518,87 @@ class DragDropManager {
         });
     }
 
+    globalDragOver(e) {
+        const container = e.target.closest('.nested-container');
+        const elseContainer = e.target.closest('.else-blocks-container');
+        
+        if (this.lastHighlightedContainer && this.lastHighlightedContainer !== container) {
+            this.lastHighlightedContainer.classList.remove('drag-over');
+            this.lastHighlightedContainer = null;
+        }
+        
+        if (this.lastHighlightedElseContainer && this.lastHighlightedElseContainer !== elseContainer) {
+            this.lastHighlightedElseContainer.classList.remove('drag-over');
+            this.lastHighlightedElseContainer = null;
+        }
+        
+        if (container && DragDropManager.draggedBlock) {
+            const parentBlock = container.closest('.canvas-block').blockInstance;
+            
+            if (parentBlock) {
+                let canHighlight = true;
+                
+                if (DragDropManager.draggedBlock.blockInstance) {
+                    const draggedInstance = DragDropManager.draggedBlock.blockInstance;
+                    if (parentBlock.isAncestorOf(draggedInstance) || parentBlock === draggedInstance) {
+                        canHighlight = false;
+                    }
+                }
+                
+                if (canHighlight) {
+                    container.classList.add('drag-over');
+                    this.lastHighlightedContainer = container;
+                }
+            }
+        }
+        
+        if (elseContainer && DragDropManager.draggedBlock) {
+            const parentBlock = elseContainer.closest('.canvas-block').blockInstance;
+            
+            if (parentBlock) {
+                let canHighlight = true;
+                
+                if (DragDropManager.draggedBlock.blockInstance) {
+                    const draggedInstance = DragDropManager.draggedBlock.blockInstance;
+                    if (parentBlock.isAncestorOf(draggedInstance) || parentBlock === draggedInstance) {
+                        canHighlight = false;
+                    }
+                }
+                
+                if (canHighlight) {
+                    elseContainer.classList.add('drag-over');
+                    this.lastHighlightedElseContainer = elseContainer;
+                }
+            }
+        }
+    }
+
     dragStart = (e) => {
-        this.draggedBlock = e.currentTarget;
+        const block = e.currentTarget;
+        DragDropManager.draggedBlock = block;
+        
+        if (block.blockInstance) {
+            DragDropManager.draggedBlock.blockInstance = block.blockInstance;
+        }
+        
         e.dataTransfer.effectAllowed = 'copy';
-        e.dataTransfer.setData('text/html', this.draggedBlock.outerHTML);
-        e.dataTransfer.setData('type', this.draggedBlock.dataset.type || 'default');
-        e.dataTransfer.setData('blockId', 'new_' + Date.now());
-        setTimeout(() => this.draggedBlock.style.opacity = '0.5', 0);
+        e.dataTransfer.setData('text/html', block.outerHTML);
+        e.dataTransfer.setData('type', block.dataset.type || 'default');
+        e.dataTransfer.setData('blockId', block.blockInstance ? block.blockInstance.element.dataset.blockId : 'new_' + Date.now());
+        
+        setTimeout(() => block.style.opacity = '0.5', 0);
     };
 
     dragEnd = (e) => {
+        document.querySelectorAll('.nested-container, .else-blocks-container').forEach(container => {
+            container.classList.remove('drag-over');
+        });
+        
         e.currentTarget.style.opacity = '1';
-        this.draggedBlock = null;
+        DragDropManager.draggedBlock = null;
+        DragDropManager.draggedBlocks = null;
+        this.lastHighlightedContainer = null;
+        this.lastHighlightedElseContainer = null;
     };
 
     dragOver = (e) => {
@@ -677,7 +1608,18 @@ class DragDropManager {
 
     drop = (e) => {
         e.preventDefault();
-        if (!this.draggedBlock || !this.workspace) return;
+        
+        document.querySelectorAll('.nested-container, .else-blocks-container').forEach(container => {
+            container.classList.remove('drag-over');
+        });
+        
+        const targetContainer = e.target.closest('.nested-container');
+        const targetElseContainer = e.target.closest('.else-blocks-container');
+        if (targetContainer || targetElseContainer) {
+            return;
+        }
+        
+        if (!DragDropManager.draggedBlock || !this.workspace) return;
 
         if (typeof window.scale !== 'undefined') {
             this.currentScale = window.scale;
@@ -688,7 +1630,7 @@ class DragDropManager {
         const mouseX = (e.clientX - workspaceRect.left) / this.currentScale;
         const mouseY = (e.clientY - workspaceRect.top) / this.currentScale;
 
-        const newBlockElement = this.draggedBlock.cloneNode(true);
+        const newBlockElement = DragDropManager.draggedBlock.cloneNode(true);
         
         newBlockElement.removeAttribute('draggable');
         newBlockElement.classList.remove('draggable-item');
