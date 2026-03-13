@@ -93,7 +93,7 @@ class Block {
             this.addPrint();
         } else if (blockType === 'array'){
             this.addArrayInput();
-        } else if (blockType === 'assignmentArray'){
+        } else if (blockType === 'assignment array'){
             this.addArrayAssignmentInput();
         }
 
@@ -221,24 +221,81 @@ class Block {
         inputsGroup.appendChild(rowContainer);
         this.element.appendChild(inputsGroup);
 
+        const getPreviousBlocks = (block) => {
+            const previousBlocks = [];
+            let current = block.parent;
+            
+            while (current) {
+                previousBlocks.push(current);
+                
+                if (current.nestedBlocks && current.nestedBlocks.length > 0) {
+                    for (const nested of current.nestedBlocks) {
+                        previousBlocks.push(nested);
+                    }
+                }
+                if (current.elseBlocks && current.elseBlocks.length > 0) {
+                    for (const elseBlock of current.elseBlocks) {
+                        previousBlocks.push(elseBlock);
+                    }
+                }
+                
+                current = current.parent;
+            }
+            
+            return previousBlocks;
+        };
+
+        const checkSelectedArrayExists = () => {
+            const selectedArray = this.element.dataset.selectedArray;
+            if (!selectedArray) return;
+
+            const previousBlocks = getPreviousBlocks(this);
+            let exists = false;
+            
+            for (const block of previousBlocks) {
+                if (block.element.dataset.type === 'array' && block.element.dataset.arrayName === selectedArray) {
+                    exists = true;
+                    break;
+                }
+            }
+
+            if (!exists) {
+                select.value = '';
+                indexInput.disabled = true;
+                valueInput.disabled = true;
+                indexInput.value = '';
+                valueInput.value = '';
+                this.element.removeAttribute('data-selected-array');
+                this.element.removeAttribute('data-array-index');
+                this.element.removeAttribute('data-array-value');
+                if (this.onLog) this.onLog(`Массив ${selectedArray} больше не доступен`);
+            }
+        };
+
         const populateArraySelect = (select, defaultOption) => {
             const currentValue = select.value;
             select.innerHTML = '';
             select.appendChild(defaultOption);
 
-            const arrayBlocks = this.blocksContainer.querySelectorAll('.canvas-block[data-type="array"]');
-            arrayBlocks.forEach(arrayBlock => {
-                const arrayName = arrayBlock.dataset.arrayName || '';
-                const arraySize = arrayBlock.dataset.arraySize || '0';
-                if (arrayName && arrayName.trim() !== '') {
-                    const option = document.createElement('option');
-                    option.value = arrayName;
-                    option.textContent = `${arrayName} [${arraySize}]`;
-                    select.appendChild(option);
+            const previousBlocks = getPreviousBlocks(this);
+            
+            previousBlocks.forEach(block => {
+                if (block.element.dataset.type === 'array') {
+                    const arrayName = block.element.dataset.arrayName || '';
+                    const arraySize = block.element.dataset.arraySize || '0';
+                    if (arrayName && arrayName.trim() !== '') {
+                        const option = document.createElement('option');
+                        option.value = arrayName;
+                        option.textContent = `${arrayName} [${arraySize}]`;
+                        select.appendChild(option);
+                    }
                 }
             });
 
-            if (currentValue) select.value = currentValue;
+            if (currentValue) {
+                const exists = Array.from(select.options).some(opt => opt.value === currentValue);
+                if (exists) select.value = currentValue;
+            }
         };
 
         select.addEventListener('click', (e) => {
@@ -275,6 +332,21 @@ class Block {
                 this.element.dataset.arrayValue = valueInput.value;
             }
         });
+
+        const observer = new MutationObserver(() => {
+            checkSelectedArrayExists();
+        });
+
+        observer.observe(this.element, {
+            attributes: true,
+            attributeFilter: ['data-parent', 'data-nestedparent']
+        });
+
+        const originalDetachFromParent = this.detachFromParent;
+        this.detachFromParent = function() {
+            originalDetachFromParent.call(this);
+            setTimeout(() => checkSelectedArrayExists(), 0);
+        };
 
         [select, indexInput, valueInput].forEach(el => {
             el.addEventListener('mousedown', (e) => e.stopPropagation());
@@ -324,25 +396,83 @@ class Block {
         inputsGroup.appendChild(valueInput);
         this.element.appendChild(inputsGroup);
 
+        const getPreviousBlocks = (block) => {
+            const previousBlocks = [];
+            let current = block.parent;
+            
+            while (current) {
+                previousBlocks.push(current);
+                
+                if (current.nestedBlocks && current.nestedBlocks.length > 0) {
+                    for (const nested of current.nestedBlocks) {
+                        previousBlocks.push(nested);
+                    }
+                }
+                if (current.elseBlocks && current.elseBlocks.length > 0) {
+                    for (const elseBlock of current.elseBlocks) {
+                        previousBlocks.push(elseBlock);
+                    }
+                }
+                
+                current = current.parent;
+            }
+            
+            return previousBlocks;
+        };
+
+        const checkSelectedVariableExists = () => {
+            const selectedVar = this.element.dataset.selectedVar;
+            if (!selectedVar) return;
+
+            const previousBlocks = getPreviousBlocks(this);
+            let exists = false;
+            
+            for (const block of previousBlocks) {
+                if (block.element.dataset.type === 'variable') {
+                    const varNames = (block.element.dataset.varName || '').replace(/\s+/g, '').split(',');
+                    if (varNames.includes(selectedVar)) {
+                        exists = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!exists) {
+                select.value = '';
+                valueInput.disabled = true;
+                valueInput.value = '';
+                this.element.removeAttribute('data-selected-var');
+                if (this.onLog) this.onLog(`Переменная ${selectedVar} больше не доступна`);
+            }
+        };
+
         const populateVariableSelect = (select, defaultOption) => {
             const currentValue = select.value;
             select.innerHTML = '';
             select.appendChild(defaultOption);
 
-            const variableBlocks = this.blocksContainer.querySelectorAll('.canvas-block[data-type="variable"]');
-            variableBlocks.forEach(varBlock => {
-                const varNames = (varBlock.dataset.varName || '').replace(/\s+/g, '').split(',');
-                for (const name of varNames) {
-                    if (name && name.trim() !== '') {
-                        const option = document.createElement('option');
-                        option.value = name;
-                        option.textContent = name;
-                        select.appendChild(option);
+            const previousBlocks = getPreviousBlocks(this);
+            const variableNames = new Set();
+            
+            previousBlocks.forEach(block => {
+                if (block.element.dataset.type === 'variable') {
+                    const varNames = (block.element.dataset.varName || '').replace(/\s+/g, '').split(',');
+                    for (const name of varNames) {
+                        if (name && name.trim() !== '') {
+                            variableNames.add(name);
+                        }
                     }
                 }
             });
 
-            if (currentValue) {
+            Array.from(variableNames).sort().forEach(name => {
+                const option = document.createElement('option');
+                option.value = name;
+                option.textContent = name;
+                select.appendChild(option);
+            });
+
+            if (currentValue && variableNames.has(currentValue)) {
                 select.value = currentValue;
             }
         };
@@ -372,6 +502,21 @@ class Block {
                 this.element.dataset.newValue = valueInput.value;
             }
         });
+
+        const observer = new MutationObserver(() => {
+            checkSelectedVariableExists();
+        });
+
+        observer.observe(this.element, {
+            attributes: true,
+            attributeFilter: ['data-parent', 'data-nestedparent']
+        });
+
+        const originalDetachFromParent = this.detachFromParent;
+        this.detachFromParent = function() {
+            originalDetachFromParent.call(this);
+            setTimeout(() => checkSelectedVariableExists(), 0);
+        };
 
         select.addEventListener('mousedown', (e) => e.stopPropagation());
         select.addEventListener('click', (e) => e.stopPropagation());
@@ -620,6 +765,13 @@ class Block {
             rootBlock = rootBlock.parent;
         }
         rootBlock.updateAllAttachedPositions();
+
+        if (block.connectionPoints.top) {
+        block.connectionPoints.top.element.style.display = 'none';
+        }
+        if (block.connectionPoints.bottom) {
+            block.connectionPoints.bottom.element.style.display = 'none';
+        }
         
         return true;
     }
@@ -648,6 +800,13 @@ class Block {
             rootBlock = rootBlock.parent;
         }
         rootBlock.updateAllAttachedPositions();
+
+        if (block.connectionPoints.top) {
+        block.connectionPoints.top.element.style.display = 'block';
+        }
+        if (block.connectionPoints.bottom) {
+            block.connectionPoints.bottom.element.style.display = 'block';
+        }
         
         return true;
     }
@@ -794,6 +953,13 @@ class Block {
             rootBlock = rootBlock.parent;
         }
         rootBlock.updateAllAttachedPositions();
+
+        if (block.connectionPoints.top) {
+        block.connectionPoints.top.element.style.display = 'none';
+        }
+        if (block.connectionPoints.bottom) {
+            block.connectionPoints.bottom.element.style.display = 'none';
+        }
         
         return true;
     }
@@ -817,6 +983,13 @@ class Block {
         }
         
         block.nestedParent = null;
+
+        if (block.connectionPoints.top) {
+        block.connectionPoints.top.element.style.display = 'block';
+        }
+        if (block.connectionPoints.bottom) {
+            block.connectionPoints.bottom.element.style.display = 'block';
+        }
         
         return true;
     }
@@ -1585,7 +1758,7 @@ class DragDropManager {
         e.dataTransfer.setData('type', block.dataset.type || 'default');
         e.dataTransfer.setData('blockId', block.blockInstance ? block.blockInstance.element.dataset.blockId : 'new_' + Date.now());
         
-        setTimeout(() => block.style.opacity = '0.5', 0);
+        setTimeout(() => block.style.opacity = '1', 0);
     };
 
     dragEnd = (e) => {
@@ -1614,9 +1787,6 @@ class DragDropManager {
         
         const targetContainer = e.target.closest('.nested-container');
         const targetElseContainer = e.target.closest('.else-blocks-container');
-        if (targetContainer || targetElseContainer) {
-            return;
-        }
         
         if (!DragDropManager.draggedBlock || !this.workspace) return;
 
