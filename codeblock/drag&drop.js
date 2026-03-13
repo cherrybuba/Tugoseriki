@@ -188,16 +188,14 @@ class Block {
         defaultOption.textContent = 'Выберите массив';
         select.appendChild(defaultOption);
 
-    const indexInput = document.createElement('input');
-    indexInput.type = 'text';
-    indexInput.placeholder = 'i';
-    indexInput.dataset.field = 'arrayIndex';
-    indexInput.className = 'array-index-input';
-    indexInput.inputMode = 'numeric';
-    indexInput.pattern = '[0-9]*';
-    indexInput.disabled = true;
-    indexInput.style.width = '50px';
-    indexInput.style.textAlign = 'center';
+        const indexInput = document.createElement('input');
+        indexInput.type = 'text';
+        indexInput.placeholder = 'i';
+        indexInput.dataset.field = 'arrayIndex';
+        indexInput.className = 'array-index-input';
+        indexInput.disabled = true;
+        indexInput.style.width = '50px';
+        indexInput.style.textAlign = 'center';
 
         const valueInput = document.createElement('input');
         valueInput.type = 'text';
@@ -258,13 +256,6 @@ class Block {
             this.element.removeAttribute('data-selected-array');
             this.element.removeAttribute('data-array-index');
             this.element.removeAttribute('data-array-value');
-        }
-    });
-
-    indexInput.addEventListener('input', (e) => {
-        if (this.element.dataset.selectedArray) {
-            e.target.value = e.target.value.replace(/[^0-9]/g, '');
-            this.element.dataset.arrayIndex = e.target.value;
         }
     });
 
