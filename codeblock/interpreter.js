@@ -50,7 +50,7 @@ class Interpreter
                         return;
                     }
                     break;
-                case 'assignmentArray':
+                case 'assignment array':
                     try {
                         this.defineArray(select.value, input[0].value, input[1].value);
                         if (this.onLogAlg) this.onLogAlg(`Массиву ${select.value} присвоено значение ${this.variables.get(select.value).value}`);

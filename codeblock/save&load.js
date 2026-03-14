@@ -1,11 +1,12 @@
+document.querySelectorAll('[class*="canvas-block"]');
 function saveProject() {
     const blocksData = [];
-    
-    const elements = document.querySelectorAll('#zoom-layer > .canvas-block');
-    
+
+    const elements = document.querySelectorAll('[class*="canvas-block"]');
+    console.log(elements.length);
     elements.forEach(el => {
         let type = 'unknown';
-        
+
         const dataType = el.getAttribute('data-type');
         if (dataType) {
             type = dataType;
@@ -27,21 +28,21 @@ function saveProject() {
     });
 
     const jsonString = JSON.stringify(blocksData, null, 2);
-    
-    
+
+
     const blob = new Blob([jsonString], { type: "application/json" });
     const url = URL.createObjectURL(blob);
-    
+
     const link = document.createElement('a');
     link.href = url;
     link.download = "my_algorithm.json";
     document.body.appendChild(link);
-    
+
     link.click();
-    
+
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-    
+
     console.log("Проект успешно сохранен!");
 }
 
@@ -49,37 +50,37 @@ function loadProject() {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.json';
-    
-    input.onchange = e => { 
+
+    input.onchange = e => {
         const file = e.target.files[0];
         if (!file) return;
 
         const reader = new FileReader();
         reader.readAsText(file, 'UTF-8');
-        
+
         reader.onload = readerEvent => {
             try {
                 const content = readerEvent.target.result;
                 const blocksData = JSON.parse(content);
-                
-                const oldBlocks = document.querySelectorAll('#zoom-layer > .canvas-block');
+                console.log(blocksData[0]);
+                const oldBlocks = document.querySelectorAll('[class*="canvas-block"]');
                 oldBlocks.forEach(b => b.remove());
-                
-                blocksData.forEach(data => {
+
+                for (let i = 0; i < blocksData.length; ++i) {
+                    const data = blocksData[i];
                     const x = parseFloat(data.left);
                     const y = parseFloat(data.top);
-                    
-                    createBlock(data.type, x, y);
-                });
-                
+                    block = new Block();
+                }
+
                 console.log("Проект загружен из файла!");
-                
+
             } catch (err) {
                 alert("Ошибка при чтении файла! Возможно, он поврежден.");
                 console.error(err);
             }
         }
     }
-    
+
     input.click();
 }
