@@ -28,6 +28,7 @@ function saveProject() {
 
     const jsonString = JSON.stringify(blocksData, null, 2);
     
+    
     const blob = new Blob([jsonString], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     
