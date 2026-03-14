@@ -1,11 +1,17 @@
 class Interpreter
 {
-    constructor () {
+    constructor (onLog, onLogAlg) {
         this.blocks = document.getElementById('blocks-container').querySelectorAll(':scope > [class*="canvas-block"]');
         this.variables = new Map();
+        this.onLog = onLog;
+        this.onLogAlg = onLogAlg;
     }
 
     runAlgorithm(blocks) {
+        if (!blocks || blocks.length === 0) {
+            if (this.onLogAlg) this.onLogAlg('Нет блоков для выполнения');
+            return;
+        }
         let variablesScope = [];
         this.clearErrorHighlight();
         for (const block of blocks) {
@@ -17,7 +23,7 @@ class Interpreter
                 case 'variable':
                     try {
                         this.createVariables(input[0].value, variablesScope);
-                        logToConsole(`Объявлена переменная ${input[0].value}`)
+                        if (this.onLogAlg) this.onLogAlg(`Объявлена переменная ${input[0].value}`);
                     }
                     catch (error) {
                         this.handleDeclarationError(error, block);
@@ -27,7 +33,7 @@ class Interpreter
                 case 'array':
                     try {
                         this.createArray(input[0].value, input[1].value, variablesScope);
-                        logToConsole(`Объявлен массив ${input[0].value} размером ${this.variables.get(input[0].value).value.length}`)
+                        if (this.onLogAlg) this.onLogAlg(`Объявлен массив ${input[0].value} размером ${this.variables.get(input[0].value).value.length}`);
                     }
                     catch (error) {
                         this.handleDeclarationError(error, block);
@@ -37,7 +43,7 @@ class Interpreter
                 case 'assignment':
                     try {
                         this.defineVariable(select.value, input[0].value);
-                        logToConsole(`Переменной ${select.value} присвоено значение ${this.variables.get(select.value).value}`);
+                        if (this.onLogAlg) this.onLogAlg(`Переменной ${select.value} присвоено значение ${this.variables.get(select.value).value}`);
                     }
                     catch (error) {
                         this.handleDefineError(error, block);
@@ -47,7 +53,7 @@ class Interpreter
                 case 'assignmentArray':
                     try {
                         this.defineArray(select.value, input[0].value, input[1].value);
-                        logToConsole(`Массиву ${select.value} присвоено значение ${this.variables.get(select.value).value}`);
+                        if (this.onLogAlg) this.onLogAlg(`Массиву ${select.value} присвоено значение ${this.variables.get(select.value).value}`);
                     }
                     catch (error) {
                         this.handleDefineError(error, block);
@@ -56,7 +62,7 @@ class Interpreter
                     break;
                 case 'if':
                     try {
-                        this.executeIfStatement(input[0].value, block.querySelector('[class*="nested-container"]'));
+                        this.executeIfStatement(input[0].value, block);
                     }
                     catch (error) {
                         this.handleConditionError(error, block);
@@ -74,7 +80,8 @@ class Interpreter
                     break;
                 case 'print':
                     try {
-                        logToConsole(RPN.calculate(this.variables, input[0].value));
+                        const result = RPN.calculate(this.variables, input[0].value);
+                        if (this.onLogAlg) this.onLogAlg(result);
                     }
                     catch (error) {
                         this.handlePrintError(error, block);
@@ -140,14 +147,7 @@ class Interpreter
 
     handleDeclarationError (error, block) {
         this.highlightBlock(block);
-        switch (error.name) {
-            case 'SyntaxError':
-                logToConsole(error.message);
-                break;
-            case 'ReferenceError':
-                logToConsole(error.message);
-                break;
-        }
+        if (this.onLogAlg) this.onLogAlg(error.message);
     }
 
     defineVariable (name, expression) {
@@ -178,26 +178,21 @@ class Interpreter
 
     handleDefineError (error, block) {
         this.highlightBlock(block);
-        switch (error.name) {
-            case 'ArithmeticError':
-                logToConsole(error.message);
-                break;
-            case 'SyntaxError':
-                logToConsole(error.message);
-                break;
-            case 'ReferenceError':
-                logToConsole(error.message);
-                break;
-        }
+        if (this.onLogAlg) this.onLogAlg(error.message);
     }
 
-    executeIfStatement (condition, innerBlock) {
+    executeIfStatement (condition, block) {
+        const ifBlock = block.querySelector('[class*="nested-container"]');
         if (RPN.calculate(this.variables, condition)) {
-            logToConsole('Условие ' + condition + ' истинно');
-            this.runAlgorithm(innerBlock.querySelectorAll(':scope > [class*="canvas-block"]'));
+            if (this.onLogAlg) this.onLogAlg('Условие ' + condition + ' истинно');
+            this.runAlgorithm(ifBlock.querySelectorAll(':scope > [class*="canvas-block"]'));
             return;
         }
-        logToConsole('Условие ' + condition + ' ложно');
+        if (this.onLogAlg) this.onLogAlg('Условие ' + condition + ' ложно');
+        const elseBlock = block.querySelector('[class*="else-blocks-container"]');
+        if (elseBlock) {
+            this.runAlgorithm(elseBlock.querySelectorAll(':scope > [class*="canvas-block"]'));
+        }
     }
 
     executeWhileLoop (condition, innerBlock) {
@@ -206,36 +201,16 @@ class Interpreter
             this.runAlgorithm(innerBlock.querySelectorAll(':scope > [class*="canvas-block"]'));
            ++count;
         }
-        logToConsole('Цикл while выполнился ' + count + ' раз');
+        if (this.onLogAlg) this.onLogAlg('Цикл while выполнился ' + count + ' раз');
     }
 
     handleConditionError(error, block) {
         this.highlightBlock(block);
-        switch (error.name) {
-            case 'ArithmeticError':
-                logToConsole(error.message);
-                break;
-            case 'SyntaxError':
-                logToConsole(error.message);
-                break;
-            case 'ReferenceError':
-                logToConsole(error.message);
-                break;
-        }
+        if (this.onLogAlg) this.onLogAlg(error.message);
     }
 
     handlePrintError(error, block) {
         this.highlightBlock(block);
-        switch (error.name) {
-            case 'ArithmeticError':
-                logToConsole(error.message);
-                break;
-            case 'SyntaxError':
-                logToConsole(error.message);
-                break;
-            case 'ReferenceError':
-                logToConsole(error.message);
-                break;
-        }
+        if (this.onLogAlg) this.onLogAlg(error.message);
     }
 }

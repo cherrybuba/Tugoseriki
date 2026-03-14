@@ -209,26 +209,55 @@ class Block {
         inputsGroup.appendChild(rowContainer);
         this.element.appendChild(inputsGroup);
 
+        select.addEventListener('mousedown', (e) => {
+            e.stopPropagation();
+        });
+
+        select.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+
         const getPreviousBlocks = (block) => {
             const previousBlocks = [];
-            let current = block.parent;
             
-            while (current) {
-                previousBlocks.push(current);
+            const isInNested = block.element.closest('.nested-container') !== null;
+            const isInElse = block.element.closest('.else-blocks-container') !== null;
+            
+            const collectFromContainer = (containerBlock) => {
+                if (!containerBlock) return;
                 
-                if (current.nestedBlocks && current.nestedBlocks.length > 0) {
-                    for (const nested of current.nestedBlocks) {
-                        previousBlocks.push(nested);
+                previousBlocks.push(containerBlock);
+                
+                if (isInNested && containerBlock.nestedBlocks) {
+                    for (const nested of containerBlock.nestedBlocks) {
+                        collectFromContainer(nested);
                     }
                 }
-                if (current.elseBlocks && current.elseBlocks.length > 0) {
-                    for (const elseBlock of current.elseBlocks) {
-                        previousBlocks.push(elseBlock);
+                
+                if (isInElse && containerBlock.elseBlocks) {
+                    for (const elseBlock of containerBlock.elseBlocks) {
+                        collectFromContainer(elseBlock);
                     }
                 }
+            };
+            
+            const climbHierarchy = (startBlock) => {
+                let current = startBlock;
                 
-                current = current.parent;
-            }
+                while (current) {
+                    if (current.parent) {
+                        collectFromContainer(current.parent);
+                        current = current.parent;
+                    } else if (current.nestedParent) {
+                        collectFromContainer(current.nestedParent);
+                        current = current.nestedParent;
+                    } else {
+                        current = null;
+                    }
+                }
+            };
+            
+            climbHierarchy(block);
             
             return previousBlocks;
         };
@@ -283,6 +312,12 @@ class Block {
             }
         });
 
+        [indexInput, valueInput].forEach(el => {
+            el.addEventListener('mousedown', (e) => e.stopPropagation());
+            el.addEventListener('click', (e) => e.stopPropagation());
+        });
+    }
+
     addVariableNameInput() {
         const inputsGroup = document.createElement('div');
         inputsGroup.className = 'block-inputs-group';
@@ -327,24 +362,45 @@ class Block {
 
         const getPreviousBlocks = (block) => {
             const previousBlocks = [];
-            let current = block.parent;
             
-            while (current) {
-                previousBlocks.push(current);
+            const isInNested = block.element.closest('.nested-container') !== null;
+            const isInElse = block.element.closest('.else-blocks-container') !== null;
+            
+            const collectFromContainer = (containerBlock) => {
+                if (!containerBlock) return;
                 
-                if (current.nestedBlocks && current.nestedBlocks.length > 0) {
-                    for (const nested of current.nestedBlocks) {
-                        previousBlocks.push(nested);
+                previousBlocks.push(containerBlock);
+                
+                if (isInNested && containerBlock.nestedBlocks) {
+                    for (const nested of containerBlock.nestedBlocks) {
+                        collectFromContainer(nested);
                     }
                 }
-                if (current.elseBlocks && current.elseBlocks.length > 0) {
-                    for (const elseBlock of current.elseBlocks) {
-                        previousBlocks.push(elseBlock);
+                
+                if (isInElse && containerBlock.elseBlocks) {
+                    for (const elseBlock of containerBlock.elseBlocks) {
+                        collectFromContainer(elseBlock);
                     }
                 }
+            };
+            
+            const climbHierarchy = (startBlock) => {
+                let current = startBlock;
                 
-                current = current.parent;
-            }
+                while (current) {
+                    if (current.parent) {
+                        collectFromContainer(current.parent);
+                        current = current.parent;
+                    } else if (current.nestedParent) {
+                        collectFromContainer(current.nestedParent);
+                        current = current.nestedParent;
+                    } else {
+                        current = null;
+                    }
+                }
+            };
+            
+            climbHierarchy(block);
             
             return previousBlocks;
         };
